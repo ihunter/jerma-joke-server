@@ -5,8 +5,6 @@ const admin = require('firebase-admin')
 const axios = require('axios')
 axios.defaults.headers.common['Client-ID'] = process.env.CLIENT_ID
 
-// const serviceAccount = require('../jerma-joke-firebase-adminsdk-4vksc-6b4b6c4893.json')
-
 const serviceAccount = {
   type: process.env.TYPE,
   project_id: process.env.PROJECT_ID,
@@ -42,7 +40,9 @@ async function getStream () {
 async function checkStream () {
   const stream = await getStream()
 
-  if (!stream) return
+  if (!stream) return console.log('Stream Offline!')
+
+  console.log('Stream Online!')
 
   streamRef = await streamsRef.doc(stream.id)
 
@@ -78,11 +78,21 @@ async function onMessageHandler (target, context, msg, self) {
   if (message.indexOf('+2') !== -1) {
     context.joke = true
     context.msg = message
-    await streamRef.collection('messages').doc(context.id).set(context)
+    try {
+      await streamRef.collection('messages').doc(context.id).set(context)
+      console.log('+2 recorded')
+    } catch (error) {
+      console.error('Error saving message', error)
+    }
   } else if (message.indexOf('-2') !== -1) {
     context.joke = false
     context.msg = message
-    await streamRef.collection('messages').doc(context.id).set(context)
+    try {
+      await streamRef.collection('messages').doc(context.id).set(context)
+      console.log('-2 recorded')
+    } catch (error) {
+      console.error('Error saving message', error)
+    }
   }
 }
 
