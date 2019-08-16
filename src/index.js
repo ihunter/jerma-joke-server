@@ -3,7 +3,7 @@ require('dotenv').config()
 const tmi = require('tmi.js')
 const admin = require('firebase-admin')
 const axios = require('axios')
-axios.defaults.headers.common['Client-ID'] = process.env.CLIENT_ID
+axios.defaults.headers.common['Client-ID'] = process.env.TWITCH_CLIENT_ID
 
 const serviceAccount = {
   type: process.env.TYPE,
@@ -99,5 +99,7 @@ async function onMessageHandler (target, context, msg, self) {
 function onConnectedhandler (addr, port) {
   console.log(`* Connected to ${addr}:${port}`)
 }
+
+checkStream()
 
 setInterval(checkStream, 60000)
