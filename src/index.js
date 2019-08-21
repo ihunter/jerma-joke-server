@@ -3,6 +3,7 @@ require('dotenv').config()
 const tmi = require('tmi.js')
 const admin = require('firebase-admin')
 const axios = require('axios')
+const moment = require('moment')
 axios.defaults.headers.common['Client-ID'] = process.env.TWITCH_CLIENT_ID
 
 const serviceAccount = {
@@ -38,15 +39,42 @@ async function getStream () {
 }
 
 async function checkStream () {
-  const stream = await getStream()
+  let stream
+  try {
+    stream = await getStream()
+  } catch (error) {
+    console.error('Error getting stream')
+  }
 
-  if (!stream) return console.log('Stream Offline!')
+  // Stream is live and reference is set
+  if (stream && streamRef) return
 
-  console.log('Stream Online!')
+  // Stream is offline and reference is unset
+  if (!stream && !streamRef) return
 
-  streamRef = await streamsRef.doc(stream.id)
+  // Stream is offline and reference is set
+  if (!stream && streamRef) {
+    try {
+      // Update stream to offline
+      await streamRef.update({
+        type: 'offline'
+      })
 
-  await streamRef.set(stream)
+      await analyzeData()
+    } catch (error) {
+      console.error('Error updating stream:', error)
+    }
+    // Unset reference to stream
+    streamRef = null
+    return
+  }
+
+  try {
+    streamRef = await streamsRef.doc(stream.id)
+    await streamRef.set(stream)
+  } catch (error) {
+    console.error('Error creating stream:', error)
+  }
 }
 
 const options = {
@@ -82,7 +110,7 @@ async function onMessageHandler (target, context, msg, self) {
       await streamRef.collection('messages').doc(context.id).set(context)
       console.log('+2 recorded')
     } catch (error) {
-      console.error('Error saving message', error)
+      console.error('Error saving message:', error)
     }
   } else if (message.indexOf('-2') !== -1) {
     context.joke = false
@@ -91,8 +119,49 @@ async function onMessageHandler (target, context, msg, self) {
       await streamRef.collection('messages').doc(context.id).set(context)
       console.log('-2 recorded')
     } catch (error) {
-      console.error('Error saving message', error)
+      console.error('Error saving message:', error)
     }
+  }
+}
+
+async function analyzeData () {
+  try {
+    let jokeTotal = 0
+    let interval = 20 // Interval in minutes
+    const messagesSnapshot = await streamRef.collection('messages').orderBy('tmi-sent-ts').get()
+    const streamDoc = await streamRef.get()
+    const streamData = streamDoc.data()
+
+    const streamStartedAt = moment(streamData.started_at)
+
+    const data = []
+
+    messagesSnapshot.forEach(message => {
+      const messageData = message.data()
+      const messagePostedAt = moment(+messageData['tmi-sent-ts'])
+      const messagePostTime = messagePostedAt.diff(streamStartedAt, 'minutes')
+
+      if (messageData.joke) {
+        jokeTotal += 2
+      } else {
+        jokeTotal -= 2
+      }
+
+      if (messagePostTime > interval) {
+        data.push({
+          currentJokeValue: jokeTotal,
+          interval: interval
+        })
+
+        interval += interval
+      }
+    })
+
+    await streamRef.set({
+      analyzedData: data
+    }, { merge: true })
+  } catch (error) {
+    console.log('Error analyzing data:', error)
   }
 }
 
