@@ -127,7 +127,7 @@ async function onMessageHandler (target, context, msg, self) {
 async function analyzeData () {
   try {
     let jokeTotal = 0
-    const intervalValue = 20 // Interval in minutes
+    const intervalValue = process.env.INTERVAL_VALUE // Interval in minutes
     const messagesSnapshot = await streamRef.collection('messages').orderBy('tmi-sent-ts').get()
     const streamDoc = await streamRef.get()
     const streamData = streamDoc.data()
