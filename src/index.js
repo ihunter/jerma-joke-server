@@ -48,7 +48,9 @@ async function checkStream () {
 
   // Stream is live and reference is set
   if (stream && streamRef) {
+    console.log('Analyzing live stream')
     await analyzeData()
+    return
   }
 
   // Stream is offline and reference is unset
