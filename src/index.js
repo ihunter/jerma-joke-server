@@ -47,7 +47,9 @@ async function checkStream () {
   }
 
   // Stream is live and reference is set
-  if (stream && streamRef) return
+  if (stream && streamRef) {
+    await analyzeData()
+  }
 
   // Stream is offline and reference is unset
   if (!stream && !streamRef) return
@@ -103,7 +105,7 @@ async function onMessageHandler (target, context, msg, self) {
 
   const message = msg.trim()
 
-  if (message.indexOf('+2') !== -1) {
+  if (message.includes('+2')) {
     context.joke = true
     context.msg = message
     try {
@@ -112,7 +114,7 @@ async function onMessageHandler (target, context, msg, self) {
     } catch (error) {
       console.error('Error saving message:', error)
     }
-  } else if (message.indexOf('-2') !== -1) {
+  } else if (message.includes('-2')) {
     context.joke = false
     context.msg = message
     try {
@@ -172,4 +174,4 @@ function onConnectedhandler (addr, port) {
 
 checkStream()
 
-setInterval(checkStream, 60000)
+setInterval(checkStream, 5 * 60 * 1000)
