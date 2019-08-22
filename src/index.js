@@ -158,7 +158,7 @@ async function analyzeData () {
           interval: interval
         })
 
-        interval += intervalValue
+        interval += +intervalValue
       }
     })
 
