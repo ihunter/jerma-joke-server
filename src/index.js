@@ -46,6 +46,13 @@ async function checkStream () {
     console.error('Error getting stream')
   }
 
+  try {
+    streamRef = await streamsRef.doc(stream.id)
+    await streamRef.set(stream)
+  } catch (error) {
+    console.error('Error creating stream:', error)
+  }
+
   // Stream is live and reference is set
   if (stream && streamRef) {
     console.log('Analyzing live stream')
@@ -70,14 +77,6 @@ async function checkStream () {
     }
     // Unset reference to stream
     streamRef = null
-    return
-  }
-
-  try {
-    streamRef = await streamsRef.doc(stream.id)
-    await streamRef.set(stream)
-  } catch (error) {
-    console.error('Error creating stream:', error)
   }
 }
 
