@@ -47,7 +47,7 @@ async function checkStream () {
   if (stream && !streamDocRef) {
     try {
       streamDocRef = await streamsCollectionRef.doc(stream.id)
-      await streamDocRef.set(stream)
+      await streamDocRef.set(stream, { merge: true })
     } catch (error) {
       console.error('Error creating stream:', error)
     }
@@ -98,11 +98,11 @@ async function onMessageHandler (target, context, msg, self) {
 
 async function analyzeData () {
   try {
-    const streamDocRef = streamsCollectionRef.doc('35371150928')
     const streamDoc = await streamDocRef.get()
     const streamData = streamDoc.data()
+    const analyzedData = streamData.analyzedData || []
 
-    const currentJokeTotal = streamData.analyzeData ? streamData.analyzeData.pop().currentJokeValue : 0
+    const currentJokeTotal = analyzedData.length ? analyzedData[analyzedData.length - 1].currentJokeValue : 0
 
     let lastMessageSnapshot
     let messagesSnapshot
@@ -112,14 +112,15 @@ async function analyzeData () {
     if (messageCursor) {
       // Get the last message used for calculating tally
       lastMessageSnapshot = await streamDocRef.collection('messages').doc(messageCursor).get()
-      messagesSnapshot = await streamDocRef.collection('messages').orderBy('tmi-sent-ts').startAfter(lastMessageSnapshot)
+      messagesSnapshot = await streamDocRef.collection('messages').orderBy('tmi-sent-ts').startAfter(lastMessageSnapshot).get()
     } else {
       messagesSnapshot = await streamDocRef.collection('messages').orderBy('tmi-sent-ts').get()
     }
 
+    if (!messagesSnapshot.docs.length) return
+
     const streamStartedAt = moment(streamData.started_at)
 
-    const analyzedData = []
     let jokeTotal = 0
     messageCursor = messagesSnapshot.docs[messagesSnapshot.docs.length - 1].data().id
 
@@ -142,7 +143,7 @@ async function analyzeData () {
 
     await streamDocRef.set({ analyzedData, messageCursor }, { merge: true })
   } catch (error) {
-    console.log('Error analyzing data:', error)
+    console.error('Failed to analyze data:', error)
   }
 }
 
@@ -150,8 +151,6 @@ function onConnectedhandler (addr, port) {
   console.log(`* Connected to ${addr}:${port}`)
 }
 
-analyzeData()
+checkStream()
 
-// checkStream()
-
-// setInterval(checkStream, 5 * 60 * 1000)
+setInterval(checkStream, 1 * 10 * 1000)
