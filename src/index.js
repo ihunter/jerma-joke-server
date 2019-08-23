@@ -24,6 +24,7 @@ client.connect()
 
 const streamsCollectionRef = db.collection('streams')
 let streamDocRef = null
+let stream = null
 
 async function getStream () {
   try {
@@ -35,17 +36,20 @@ async function getStream () {
   }
 }
 
-async function checkStream () {
-  let stream = null
-
+async function updateStream () {
   try {
-    stream = await getStream()
+    const currentStream = await getStream()
+    if (stream && currentStream.id !== stream.id) {
+      streamDocRef = null
+    }
+    stream = currentStream
   } catch (error) {
     console.error('Failed to get stream:', error)
   }
 
   if (stream && !streamDocRef) {
     try {
+      console.log('Stream started, establishing database connection')
       streamDocRef = await streamsCollectionRef.doc(stream.id)
       await streamDocRef.set(stream, { merge: true })
     } catch (error) {
@@ -59,6 +63,7 @@ async function checkStream () {
     }
   } else if (!stream && streamDocRef) {
     try {
+      console.log('Stream over, final analysis')
       await streamDocRef.update({ type: 'offline' })
       await analyzeData()
       streamDocRef = null
@@ -80,7 +85,6 @@ async function onMessageHandler (target, context, msg, self) {
     context.msg = message
     try {
       await streamDocRef.collection('messages').doc(context.id).set(context)
-      console.log('+2 recorded')
     } catch (error) {
       console.error('Failed to save message:', error)
     }
@@ -89,7 +93,6 @@ async function onMessageHandler (target, context, msg, self) {
     context.msg = message
     try {
       await streamDocRef.collection('messages').doc(context.id).set(context)
-      console.log('-2 recorded')
     } catch (error) {
       console.error('Failed to save message:', error)
     }
@@ -151,6 +154,6 @@ function onConnectedhandler (addr, port) {
   console.log(`* Connected to ${addr}:${port}`)
 }
 
-checkStream()
+updateStream()
 
-setInterval(checkStream, 1 * 10 * 1000)
+setInterval(updateStream, 5 * 60 * 1000)
