@@ -39,7 +39,7 @@ async function getStream () {
 async function updateStream () {
   try {
     const currentStream = await getStream()
-    if (stream && currentStream.id !== stream.id) {
+    if (stream && currentStream && currentStream.id !== stream.id) {
       streamDocRef = null
     }
     stream = currentStream
@@ -101,6 +101,7 @@ async function onMessageHandler (target, context, msg, self) {
 
 async function analyzeData () {
   try {
+    streamDocRef = await streamsCollectionRef.doc('35320809408')
     const streamDoc = await streamDocRef.get()
     const streamData = streamDoc.data()
     const analyzedData = streamData.analyzedData || []
@@ -154,6 +155,40 @@ function onConnectedhandler (addr, port) {
   console.log(`* Connected to ${addr}:${port}`)
 }
 
-updateStream()
+async function offlineAnalysis (streamID) {
+  const streamDocRef = await streamsCollectionRef.doc(`${streamID}`)
+  const messagesCollectionRef = await streamDocRef.collection('messages')
+  const messagesQueryRef = await messagesCollectionRef.orderBy('tmi-sent-ts')
 
-setInterval(updateStream, 5 * 60 * 1000)
+  const streamSnapshot = await streamDocRef.get()
+  const messagesSnapshot = await messagesQueryRef.get()
+
+  const streamData = streamSnapshot.data()
+
+  const streamStartedAt = moment(streamData.started_at)
+
+  const analyzedData = []
+  let jokeSum = 0
+  messagesSnapshot.forEach(message => {
+    const messageData = message.data()
+    const messagePostedAt = moment(+messageData['tmi-sent-ts'])
+    const messageStreamTimestamp = messagePostedAt.diff(streamStartedAt, 'minutes')
+
+    if (messageData.joke) {
+      jokeSum += 2
+    } else {
+      jokeSum -= 2
+    }
+
+    analyzedData.push({
+      currentJokeValue: jokeSum,
+      interval: messageStreamTimestamp
+    })
+  })
+  console.log(jokeSum)
+  await streamDocRef.set({ analyzedData }, { merge: true })
+}
+
+// updateStream()
+
+// setInterval(updateStream, 1 * 10 * 1000)
