@@ -120,9 +120,13 @@ async function analyzeData () {
       messagesSnapshot = await streamDocRef.collection('messages').orderBy('tmi-sent-ts').get()
     }
 
-    if (!messagesSnapshot.docs.length) return
-
     const streamStartedAt = moment(streamData.started_at)
+
+    if (!messagesSnapshot.docs.length) {
+      const streamTime = moment().diff(streamStartedAt, 'minutes')
+      await streamDocRef.set({ streamTime }, { merge: true })
+      return
+    }
 
     let jokeTotal = 0
     messageCursor = messagesSnapshot.docs[messagesSnapshot.docs.length - 1].data().id
@@ -144,7 +148,7 @@ async function analyzeData () {
       })
     })
 
-    await streamDocRef.set({ analyzedData, messageCursor, streamTime }, { merge: true })
+    await streamDocRef.set({ analyzedData, messageCursor }, { merge: true })
   } catch (error) {
     console.error('Failed to analyze data:', error)
   }
@@ -190,4 +194,4 @@ async function offlineAnalysis (streamID) {
 
 updateStream()
 
-setInterval(updateStream, 1 * 10 * 1000)
+setInterval(updateStream, (+process.env.UPDATE_INTERVAL || 1) * 60 * 1000)
