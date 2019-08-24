@@ -101,7 +101,6 @@ async function onMessageHandler (target, context, msg, self) {
 
 async function analyzeData () {
   try {
-    streamDocRef = await streamsCollectionRef.doc('35320809408')
     const streamDoc = await streamDocRef.get()
     const streamData = streamDoc.data()
     const analyzedData = streamData.analyzedData || []
@@ -145,7 +144,7 @@ async function analyzeData () {
       })
     })
 
-    await streamDocRef.set({ analyzedData, messageCursor }, { merge: true })
+    await streamDocRef.set({ analyzedData, messageCursor, streamTime }, { merge: true })
   } catch (error) {
     console.error('Failed to analyze data:', error)
   }
@@ -189,6 +188,6 @@ async function offlineAnalysis (streamID) {
   await streamDocRef.set({ analyzedData }, { merge: true })
 }
 
-// updateStream()
+updateStream()
 
-// setInterval(updateStream, 1 * 10 * 1000)
+setInterval(updateStream, 1 * 10 * 1000)
