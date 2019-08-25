@@ -121,9 +121,9 @@ async function analyzeData () {
     }
 
     const streamStartedAt = moment(streamData.started_at)
+    const streamTime = moment().diff(streamStartedAt, 'minutes')
 
     if (!messagesSnapshot.docs.length) {
-      const streamTime = moment().diff(streamStartedAt, 'minutes')
       await streamDocRef.set({ streamTime }, { merge: true })
       return
     }
@@ -148,7 +148,7 @@ async function analyzeData () {
       })
     })
 
-    await streamDocRef.set({ analyzedData, messageCursor }, { merge: true })
+    await streamDocRef.set({ analyzedData, messageCursor, streamTime }, { merge: true })
   } catch (error) {
     console.error('Failed to analyze data:', error)
   }
