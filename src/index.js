@@ -36,13 +36,25 @@ async function getStream () {
   }
 }
 
+async function getVod () {
+  try {
+    const response = await api.get(`videos?user_id=${process.env.USER_ID}`)
+    const video = response.data.data[0]
+    return video
+  } catch (error) {
+    console.error('Failed to get VOD:', error.response.data.message)
+  }
+}
+
 async function updateStream () {
   try {
     const currentStream = await getStream()
+    const vodData = await getVod()
     if (stream && currentStream && currentStream.id !== stream.id) {
       streamDocRef = null
     }
     stream = currentStream
+    stream.vodData = vodData
   } catch (error) {
     console.error('Failed to get stream:', error)
   }
@@ -64,7 +76,8 @@ async function updateStream () {
   } else if (!stream && streamDocRef) {
     try {
       console.log('Stream over, final analysis')
-      await streamDocRef.update({ type: 'offline' })
+      const vodData = await getVod()
+      await streamDocRef.update({ type: 'offline', vodData })
       await analyzeData()
       streamDocRef = null
     } catch (error) {
