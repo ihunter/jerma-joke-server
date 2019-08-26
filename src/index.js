@@ -72,7 +72,7 @@ async function updateStream () {
     }
   } else if (stream && streamDocRef) {
     try {
-      await analyzeData()
+      await analyzeDataFromMemory()// await analyzeData()
     } catch (error) {
       console.error('Failed to analyze stream:', error)
     }
@@ -81,7 +81,7 @@ async function updateStream () {
       console.log('Stream over, final analysis')
       const vodData = await getVod()
       await streamDocRef.update({ type: 'offline', vodData })
-      await analyzeData()
+      await analyzeDataFromMemory() // await analyzeData()
       // Clear messages array on stream over
       messages.length = 0
       streamDocRef = null
@@ -125,6 +125,14 @@ async function analyzeDataFromMemory () {
     return message.joke ? sum + 2 : sum - 2
   }, 0)
 
+  const jokeScoreMin = messages.reduce((sum, message) => {
+    return message.joke ? sum : sum - 2
+  }, 0)
+
+  const jokeScoreMax = messages.reduce((sum, message) => {
+    return message.joke ? sum + 2 : sum
+  }, 0)
+
   const streamStartedAt = moment(stream.started_at)
   const streamUpTime = moment().diff(streamStartedAt, 'minutes')
 
@@ -150,7 +158,7 @@ async function analyzeDataFromMemory () {
   }
 
   try {
-    await streamDocRef.set({ condensedData, streamUpTime }, { merge: true })
+    await streamDocRef.set({ condensedData, streamUpTime, jokeScoreTotal, jokeScoreMin, jokeScoreMax }, { merge: true })
   } catch (error) {
     console.error('Failed to save condensed data:', error)
   }
@@ -251,4 +259,4 @@ async function offlineAnalysis (streamID) {
 
 updateStream()
 
-setInterval(updateStream, (+process.env.UPDATE_INTERVAL || 1) * 60 * 1000)
+setInterval(updateStream, 10000)
