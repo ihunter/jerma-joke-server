@@ -25,6 +25,7 @@ client.connect()
 const streamsCollectionRef = db.collection('streams')
 let streamDocRef = null
 let stream = null
+const messages = []
 
 async function getStream () {
   try {
@@ -62,6 +63,8 @@ async function updateStream () {
   if (stream && !streamDocRef) {
     try {
       console.log('Stream started, establishing database connection')
+      // Clear messages array on stream start
+      messages.length = 0
       streamDocRef = await streamsCollectionRef.doc(stream.id)
       await streamDocRef.set(stream, { merge: true })
     } catch (error) {
@@ -79,6 +82,8 @@ async function updateStream () {
       const vodData = await getVod()
       await streamDocRef.update({ type: 'offline', vodData })
       await analyzeData()
+      // Clear messages array on stream over
+      messages.length = 0
       streamDocRef = null
     } catch (error) {
       console.error('Failed to update stream:', error)
@@ -97,6 +102,7 @@ async function onMessageHandler (target, context, msg, self) {
     context.joke = true
     context.msg = message
     try {
+      messages.push(context)
       await streamDocRef.collection('messages').doc(context.id).set(context)
     } catch (error) {
       console.error('Failed to save message:', error)
@@ -105,10 +111,48 @@ async function onMessageHandler (target, context, msg, self) {
     context.joke = false
     context.msg = message
     try {
+      messages.push(context)
       await streamDocRef.collection('messages').doc(context.id).set(context)
     } catch (error) {
       console.error('Failed to save message:', error)
     }
+  }
+}
+
+async function analyzeDataFromMemory () {
+  // Calculate the total joke score so far
+  const jokeScoreTotal = messages.reduce((sum, message) => {
+    return message.joke ? sum + 2 : sum - 2
+  }, 0)
+
+  const streamStartedAt = moment(stream.started_at)
+  const streamUpTime = moment().diff(streamStartedAt, 'minutes')
+
+  let jokeScore = 0
+  const parsedMessages = messages.map(message => {
+    const messagePostedAt = moment(+message['tmi-sent-ts'])
+    const messagePostTime = messagePostedAt.diff(streamStartedAt, 'minutes')
+
+    message.joke ? jokeScore += 2 : jokeScore -= 2
+
+    return { jokeScore, messagePostTime }
+  })
+
+  // Combine all messages with the same interval into one data point
+  let interval = -1
+  const condensedData = []
+  for (let i = parsedMessages.length - 1; i >= 0; i--) {
+    const message = parsedMessages[i]
+    if (message.messagePostTime !== interval) {
+      condensedData.unshift(message)
+      interval = message.messagePostTime
+    }
+  }
+
+  try {
+    await streamDocRef.set({ condensedData, streamUpTime }, { merge: true })
+  } catch (error) {
+    console.error('Failed to save condensed data:', error)
   }
 }
 
