@@ -25,6 +25,7 @@ client.connect()
 const streamsCollectionRef = db.collection('streams')
 let streamDocRef = null
 let stream = null
+let vod = null
 const messages = []
 
 async function getStream () {
@@ -49,13 +50,13 @@ async function getVod () {
 
 async function updateStream () {
   try {
-    const currentStream = await getStream()
+    const streamData = await getStream()
     const vodData = await getVod()
-    if (stream && currentStream && currentStream.id !== stream.id) {
+    if (stream && streamData && streamData.id !== stream.id) {
       streamDocRef = null
     }
-    stream = currentStream
-    stream.vodData = vodData
+    stream = streamData
+    vod = vodData
   } catch (error) {
     console.error('Failed to get stream:', error)
   }
@@ -66,7 +67,7 @@ async function updateStream () {
       // Clear messages array on stream start
       messages.length = 0
       streamDocRef = await streamsCollectionRef.doc(stream.id)
-      await streamDocRef.set(stream, { merge: true })
+      await streamDocRef.set({ ...stream, vod }, { merge: true })
     } catch (error) {
       console.error('Error creating stream:', error)
     }
@@ -79,8 +80,8 @@ async function updateStream () {
   } else if (!stream && streamDocRef) {
     try {
       console.log('Stream over, final analysis')
-      const vodData = await getVod()
-      await streamDocRef.update({ type: 'offline', vodData })
+      vod = await getVod()
+      await streamDocRef.update({ type: 'offline', vod })
       await analyzeDataFromMemory() // await analyzeData()
       // Clear messages array on stream over
       messages.length = 0
