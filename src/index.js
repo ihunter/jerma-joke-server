@@ -217,25 +217,76 @@ async function offlineAnalysis (streamID) {
 
   const streamData = streamSnapshot.data()
 
-  const streamStartedAt = moment(streamData.startedAt)
+  const stream = {
+    id: streamData.id,
+    gameID: streamData.game_id,
+    startedAt: streamData.started_at,
+    thumbnailURL: streamData.thumbnail_url,
+    title: streamData.title,
+    type: streamData.type,
+    userID: streamData.user_id,
+    userName: streamData.user_name
+  }
 
-  const analyzedData = []
-  let jokeSum = 0
+  let jokeScoreTotal = 0
+  messagesSnapshot.forEach(message => {
+    message.data().joke ? jokeScoreTotal += 2 : jokeScoreTotal -= 2
+  })
+
+  let jokeScoreMin = 0
+  messagesSnapshot.forEach(message => {
+    message.data().joke ? jokeScoreMin += 0 : jokeScoreMin -= 2
+  })
+
+  let jokeScoreMax = 0
+  messagesSnapshot.forEach(message => {
+    message.data().joke ? jokeScoreMax += 2 : jokeScoreMax += 0
+  })
+
+  let sum = 0
+  let jokeScoreHigh = 0
+  messagesSnapshot.forEach(message => {
+    message.data().joke ? sum += 2 : sum -= 2
+    if (sum > jokeScoreHigh) jokeScoreHigh = sum
+  })
+
+  sum = 0
+  let jokeScoreLow = 0
+  messagesSnapshot.forEach(message => {
+    message.data().joke ? sum += 2 : sum -= 2
+    if (sum < jokeScoreLow) jokeScoreLow = sum
+  })
+
+  const streamStartedAt = moment(stream.startedAt)
+
+  let jokeScore = 0
+  const parsedMessages = []
   messagesSnapshot.forEach(message => {
     const messageData = message.data()
     const messagePostedAt = moment(+messageData['tmi-sent-ts'])
-    const messageStreamTimestamp = messagePostedAt.diff(streamStartedAt, 'minutes')
+    const interval = messagePostedAt.diff(streamStartedAt, 'minutes')
 
-    messageData.joke ? jokeSum += 2 : jokeSum -= 2
+    messageData.joke ? jokeScore += 2 : jokeScore -= 2
 
-    analyzedData.push({
-      jokeScore: jokeSum,
-      interval: messageStreamTimestamp
-    })
+    parsedMessages.push({ jokeScore, interval })
   })
-  console.log(jokeSum)
-  await streamDocRef.set({ analyzedData }, { merge: true })
+
+  let interval = -1
+  const data = []
+  for (let i = parsedMessages.length - 1; i >= 0; i--) {
+    const message = parsedMessages[i]
+    if (message.interval !== interval) {
+      data.unshift(message)
+      interval = message.interval
+    }
+  }
+
+  await streamDocRef.set({ ...stream, data, jokeScoreTotal, jokeScoreMin, jokeScoreMax, jokeScoreHigh, jokeScoreLow }, { merge: true })
 }
 
 update()
 setInterval(update, 10000)
+
+// offlineAnalysis('35453791088')
+//   .then(() => console.log('Jobs done.'))
+//   .catch(console.error)
