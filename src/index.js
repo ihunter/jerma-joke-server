@@ -25,6 +25,7 @@ const streamsCollectionRef = db.collection('streams')
 let streamDocRef = null
 let stream = null
 let video = null
+let startedAt = null
 const messages = []
 
 // Format stream data from twitch api
@@ -96,6 +97,7 @@ async function update () {
     try {
       console.log('Stream started, establishing database connection')
       messages.length = 0
+      startedAt = stream.startedAt
       streamDocRef = await streamsCollectionRef.doc(stream.id)
       await streamDocRef.set({ ...stream, video }, { merge: true })
     } catch (error) {
@@ -103,7 +105,6 @@ async function update () {
     }
   } else if (stream && streamDocRef) {
     try {
-      console.log('Analyzing messages')
       await analyzeData()
     } catch (error) {
       console.error('Failed to analyze stream:', error)
@@ -176,7 +177,7 @@ async function analyzeData () {
     return sum
   }, 0)
 
-  const streamStartedAt = moment(stream.startedAt)
+  const streamStartedAt = moment(startedAt)
   const streamUpTime = moment().diff(streamStartedAt, 'minutes')
 
   let jokeScore = 0
@@ -257,7 +258,7 @@ async function offlineAnalysis (streamID) {
     if (sum < jokeScoreLow) jokeScoreLow = sum
   })
 
-  const streamStartedAt = moment(stream.startedAt)
+  const streamStartedAt = moment(startedAt)
 
   let jokeScore = 0
   const parsedMessages = []
