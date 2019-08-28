@@ -16,8 +16,6 @@ const client = new tmi.client({
   ]
 })
 
-client.on('connected', onConnectedhandler)
-
 client.on('message', onMessageHandler)
 
 client.connect()
@@ -82,7 +80,7 @@ async function updateStream () {
       console.log('Stream over, final analysis')
       vod = await getVod()
       await streamDocRef.update({ type: 'offline', vod })
-      await analyzeDataFromMemory() // await analyzeData()
+      await offlineAnalysis()
       // Clear messages array on stream over
       messages.length = 0
       streamDocRef = null
@@ -163,65 +161,6 @@ async function analyzeDataFromMemory () {
   } catch (error) {
     console.error('Failed to save condensed data:', error)
   }
-}
-
-async function analyzeData () {
-  try {
-    const streamDoc = await streamDocRef.get()
-    const streamData = streamDoc.data()
-    const analyzedData = streamData.analyzedData || []
-
-    const currentJokeTotal = analyzedData.length ? analyzedData[analyzedData.length - 1].currentJokeValue : 0
-
-    let lastMessageSnapshot
-    let messagesSnapshot
-
-    // ID of last message used for calcualting tally
-    let messageCursor = streamData.messageCursor
-    if (messageCursor) {
-      // Get the last message used for calculating tally
-      lastMessageSnapshot = await streamDocRef.collection('messages').doc(messageCursor).get()
-      messagesSnapshot = await streamDocRef.collection('messages').orderBy('tmi-sent-ts').startAfter(lastMessageSnapshot).get()
-    } else {
-      messagesSnapshot = await streamDocRef.collection('messages').orderBy('tmi-sent-ts').get()
-    }
-
-    const streamStartedAt = moment(streamData.started_at)
-    const streamTime = moment().diff(streamStartedAt, 'minutes')
-
-    if (!messagesSnapshot.docs.length) {
-      await streamDocRef.set({ streamTime }, { merge: true })
-      return
-    }
-
-    let jokeTotal = 0
-    messageCursor = messagesSnapshot.docs[messagesSnapshot.docs.length - 1].data().id
-
-    messagesSnapshot.forEach(message => {
-      const messageData = message.data()
-      const messagePostedAt = moment(+messageData['tmi-sent-ts'])
-      const messagePostTime = messagePostedAt.diff(streamStartedAt, 'minutes')
-
-      if (messageData.joke) {
-        jokeTotal += 2
-      } else {
-        jokeTotal -= 2
-      }
-
-      analyzedData.push({
-        currentJokeValue: jokeTotal + currentJokeTotal,
-        interval: messagePostTime
-      })
-    })
-
-    await streamDocRef.set({ analyzedData, messageCursor, streamTime }, { merge: true })
-  } catch (error) {
-    console.error('Failed to analyze data:', error)
-  }
-}
-
-function onConnectedhandler (addr, port) {
-  console.log(`* Connected to ${addr}:${port}`)
 }
 
 async function offlineAnalysis (streamID) {
