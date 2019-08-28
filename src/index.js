@@ -77,7 +77,16 @@ async function getVideoData () {
 
 async function update () {
   try {
-    stream = await getStreamData()
+    const streamTemp = await getStreamData()
+
+    if ((stream && streamTemp) && (stream.id !== streamTemp.id)) {
+      console.log('New stream detected')
+      streamDocRef = null
+      messages.length = 0
+    }
+
+    stream = streamTemp
+
     video = await getVideoData()
   } catch (error) {
     console.error('Failed to update stream:', error)
@@ -110,8 +119,6 @@ async function update () {
     } catch (error) {
       console.error('Failed to update stream:', error)
     }
-  } else {
-    console.log('Stream has not started')
   }
 }
 
