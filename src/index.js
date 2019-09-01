@@ -27,6 +27,16 @@ let stream = null
 let video = null
 let startedAt = null
 const messages = []
+const games = []
+
+function clearGlobals () {
+  streamDocRef = null
+  stream = null
+  video = null
+  startedAt = null
+  messages.length = 0
+  games.length = 0
+}
 
 // Format stream data from twitch api
 async function getStreamData () {
@@ -36,9 +46,15 @@ async function getStreamData () {
 
     if (!stream) return false
 
+    if (!games.find(game => game.id === stream.game_id) && stream.game_id !== 0) {
+      const game = await getGameData(stream.game_id)
+      console.log('New game detected:', game)
+      if (game) games.push(game)
+    }
+
     return {
       id: stream.id,
-      gameID: stream.game_id,
+      games: games,
       startedAt: stream.started_at,
       thumbnailURL: stream.thumbnail_url,
       title: stream.title,
@@ -76,14 +92,30 @@ async function getVideoData () {
   }
 }
 
+async function getGameData (gameID) {
+  try {
+    const response = await api.get(`games?id=${gameID}`)
+    const game = response.data.data[0]
+
+    if (!game) return false
+
+    return {
+      id: game.id,
+      name: game.name,
+      boxArtURL: game.box_art_url
+    }
+  } catch (error) {
+    console.error('Failed to get game:', error.response.data.message)
+  }
+}
+
 async function update () {
   try {
     const streamTemp = await getStreamData()
 
     if ((stream && streamTemp) && (stream.id !== streamTemp.id)) {
       console.log('New stream detected')
-      streamDocRef = null
-      messages.length = 0
+      clearGlobals()
     }
 
     stream = streamTemp
@@ -96,7 +128,6 @@ async function update () {
   if (stream && !streamDocRef) {
     try {
       console.log('Stream started, establishing database connection')
-      messages.length = 0
       startedAt = stream.startedAt
       streamDocRef = await streamsCollectionRef.doc(stream.id)
       await streamDocRef.set({ ...stream, video }, { merge: true })
@@ -113,10 +144,9 @@ async function update () {
     try {
       console.log('Stream over, final analysis')
       video = await getVideoData()
-      await streamDocRef.set({ type: 'offline', video }, { merge: true })
+      await streamDocRef.set({ type: 'offline', video, games }, { merge: true })
       await analyzeData()
-      messages.length = 0
-      streamDocRef = null
+      clearGlobals()
     } catch (error) {
       console.error('Failed to update stream:', error)
     }
