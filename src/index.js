@@ -144,7 +144,7 @@ async function update () {
     try {
       console.log('Stream over, final analysis')
       video = await getVideoData()
-      await streamDocRef.set({ type: 'offline', video, games }, { merge: true })
+      await streamDocRef.set({ type: 'offline', video }, { merge: true })
       await analyzeData()
       clearGlobals()
     } catch (error) {
@@ -232,7 +232,7 @@ async function analyzeData () {
   }
 
   try {
-    await streamDocRef.set({ data, streamUpTime, jokeScoreTotal, jokeScoreMin, jokeScoreMax, jokeScoreHigh, jokeScoreLow }, { merge: true })
+    await streamDocRef.set({ games, data, streamUpTime, jokeScoreTotal, jokeScoreMin, jokeScoreMax, jokeScoreHigh, jokeScoreLow }, { merge: true })
   } catch (error) {
     console.error('Failed to save condensed data:', error)
   }
