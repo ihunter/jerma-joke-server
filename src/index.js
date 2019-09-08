@@ -130,6 +130,7 @@ async function update () {
       console.log('Stream started, establishing database connection')
       startedAt = stream.startedAt
       streamDocRef = await streamsCollectionRef.doc(stream.id)
+
       const messagesCollectionRef = await streamDocRef.collection('messages')
       const messagesQueryRef = await messagesCollectionRef.orderBy('tmi-sent-ts')
       const messagesSnapshot = await messagesQueryRef.get()
