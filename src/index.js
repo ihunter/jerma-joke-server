@@ -144,7 +144,7 @@ async function update () {
     }
   } else if (stream && streamDocRef) {
     try {
-      await analyzeData()
+      // await analyzeData()
     } catch (error) {
       console.error('Failed to analyze stream:', error)
     }
@@ -172,7 +172,7 @@ async function onMessageHandler (target, context, message, self) {
     try {
       messages.push(context)
       await streamDocRef.collection('messages').doc(context.id).set(context)
-      update()
+      await analyzeData()
     } catch (error) {
       console.error('Failed to save message:', error)
     }
@@ -182,7 +182,7 @@ async function onMessageHandler (target, context, message, self) {
     try {
       messages.push(context)
       await streamDocRef.collection('messages').doc(context.id).set(context)
-      update()
+      await analyzeData()
     } catch (error) {
       console.error('Failed to save message:', error)
     }
@@ -326,7 +326,7 @@ async function offlineAnalysis (streamID) {
 }
 
 update()
-// setInterval(update, 10000)
+setInterval(update, 10000)
 
 // offlineAnalysis('35453791088')
 //   .then(() => console.log('Jobs done.'))
