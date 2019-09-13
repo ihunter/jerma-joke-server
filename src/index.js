@@ -24,7 +24,6 @@ client.connect()
 const streamsCollectionRef = db.collection('streams')
 let streamDocRef = null
 let stream = null
-let video = null
 let startedAt = null
 const messages = []
 const games = []
@@ -32,7 +31,6 @@ const games = []
 function clearGlobals () {
   streamDocRef = null
   stream = null
-  video = null
   startedAt = null
   messages.length = 0
   games.length = 0
@@ -52,6 +50,8 @@ async function getStreamData () {
       if (game) games.push(game)
     }
 
+    const video = await getVideoData()
+
     return {
       id: stream.id,
       games: games,
@@ -60,7 +60,8 @@ async function getStreamData () {
       title: stream.title,
       type: stream.type,
       userID: stream.user_id,
-      userName: stream.user_name
+      userName: stream.user_name,
+      video: video
     }
   } catch (error) {
     console.error('Failed to get stream:', error.response.data.message)
@@ -119,8 +120,6 @@ async function update () {
     }
 
     stream = streamTemp
-
-    video = await getVideoData()
   } catch (error) {
     console.error('Failed to update stream:', error)
   }
@@ -138,7 +137,7 @@ async function update () {
       messagesSnapshot.forEach(message => {
         messages.push(message.data())
       })
-      await streamDocRef.set({ ...stream, video }, { merge: true })
+      await streamDocRef.set({ ...stream }, { merge: true })
     } catch (error) {
       console.error('Error creating stream:', error)
     }
@@ -151,8 +150,7 @@ async function update () {
   } else if (!stream && streamDocRef) {
     try {
       console.log('Stream over, final analysis')
-      video = await getVideoData()
-      await streamDocRef.set({ type: 'offline', video }, { merge: true })
+      await streamDocRef.set({ type: 'offline' }, { merge: true })
       await analyzeData()
       clearGlobals()
     } catch (error) {
