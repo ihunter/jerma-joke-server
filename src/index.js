@@ -141,17 +141,11 @@ async function update () {
     } catch (error) {
       console.error('Error creating stream:', error)
     }
-  } else if (stream && streamDocRef) {
-    try {
-      // await analyzeData()
-    } catch (error) {
-      console.error('Failed to analyze stream:', error)
-    }
   } else if (!stream && streamDocRef) {
     try {
       console.log('Stream over, final analysis')
-      await streamDocRef.set({ type: 'offline' }, { merge: true })
-      await analyzeData()
+      const video = await getVideoData()
+      await streamDocRef.set({ type: 'offline', video }, { merge: true })
       clearGlobals()
     } catch (error) {
       console.error('Failed to update stream:', error)
