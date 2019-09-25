@@ -5,6 +5,8 @@ const api = require('./api')
 const db = require('./db')
 const moment = require('moment')
 
+const sleep = require('util').promisify(setTimeout)
+
 // eslint-disable-next-line new-cap
 const client = new tmi.client({
   identity: {
@@ -46,8 +48,10 @@ async function getStreamData () {
 
     if (!games.find(game => game.id === stream.game_id) && stream.game_id !== 0) {
       const game = await getGameData(stream.game_id)
-      console.log('New game detected:', game)
-      if (game) games.push(game)
+      if (game) {
+        console.log('New game detected:', game)
+        games.push(game)
+      }
     }
 
     const video = await getVideoData()
@@ -144,8 +148,15 @@ async function update () {
   } else if (!stream && streamDocRef) {
     try {
       console.log('Stream over, final analysis')
-      const video = await getVideoData()
-      await streamDocRef.set({ type: 'offline', video }, { merge: true })
+      const localStreamDocRef = streamDocRef
+      clearGlobals()
+
+      let video = await getVideoData()
+      while (!video.thumbnailURL) {
+        await sleep(2000)
+        video = await getVideoData()
+      }
+      await localStreamDocRef.set({ type: 'offline', video }, { merge: true })
       clearGlobals()
     } catch (error) {
       console.error('Failed to update stream:', error)
