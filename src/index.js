@@ -120,7 +120,7 @@ async function update () {
 
     if ((stream && streamTemp) && (stream.id !== streamTemp.id)) {
       console.log('New stream detected')
-      clearGlobals()
+      endOfStream()
     }
 
     stream = streamTemp
@@ -146,21 +146,24 @@ async function update () {
       console.error('Error creating stream:', error)
     }
   } else if (!stream && streamDocRef) {
-    try {
-      console.log('Stream over, final analysis')
-      const localStreamDocRef = streamDocRef
-      clearGlobals()
+    endOfStream()
+  }
+}
 
-      let video = await getVideoData()
-      while (!video.thumbnailURL) {
-        await sleep(2000)
-        video = await getVideoData()
-      }
-      await localStreamDocRef.set({ type: 'offline', video }, { merge: true })
-      clearGlobals()
-    } catch (error) {
-      console.error('Failed to update stream:', error)
+async function endOfStream () {
+  try {
+    console.log('Stream over, final analysis')
+    const localStreamDocRef = streamDocRef
+    clearGlobals()
+
+    let video = await getVideoData()
+    while (!video.thumbnailURL) {
+      await sleep(2000)
+      video = await getVideoData()
     }
+    await localStreamDocRef.set({ type: 'offline', video }, { merge: true })
+  } catch (error) {
+    console.error('Failed to update stream:', error)
   }
 }
 
