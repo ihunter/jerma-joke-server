@@ -73,9 +73,10 @@ async function getStreamData () {
 }
 
 // Format video data from twitch api
-async function getVideoData () {
+async function getVideoData (id) {
   try {
-    const response = await api.get(`videos?user_id=${process.env.USER_ID}`)
+    const query = id ? `videos?id=${id}` : `videos?user_id=${process.env.USER_ID}`
+    const response = await api.get(query)
     const video = response.data.data[0]
 
     if (!video) return false
@@ -154,12 +155,18 @@ async function endOfStream () {
   try {
     console.log('Stream over, final analysis')
     const localStreamDocRef = streamDocRef
+    const streamDoc = await streamDocRef.get()
+    const streamData = streamDoc.data()
+    const videoID = streamData.video.id
+    console.log('Document Ref ID:', localStreamDocRef.id)
+    console.log('Video ID:', videoID)
     clearGlobals()
 
-    let video = await getVideoData()
+    let video = await getVideoData(videoID)
     while (!video.thumbnailURL) {
       await sleep(2000)
-      video = await getVideoData()
+      video = await getVideoData(videoID)
+      console.log(video.thumbnailURL)
     }
     await localStreamDocRef.set({ type: 'offline', video }, { merge: true })
   } catch (error) {
