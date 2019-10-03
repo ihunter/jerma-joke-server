@@ -9,6 +9,9 @@ const sleep = require('util').promisify(setTimeout)
 
 // eslint-disable-next-line new-cap
 const client = new tmi.client({
+  connection: {
+    reconnect: true
+  },
   identity: {
     username: process.env.BOT_USERNAME,
     password: process.env.OAUTH_TOKEN
