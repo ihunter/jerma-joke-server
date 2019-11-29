@@ -182,7 +182,12 @@ async function onMessageHandler (target, context, message, self) {
 
   if (!streamDocRef) return
 
-  if (message.includes('+2')) {
+  const score = message.match(/(^|\s)([+-]2)/)
+
+  if (!score) return
+
+  if (score.includes('+2')) {
+    console.log('+2 joke')
     context.joke = true
     context.msg = message
     try {
@@ -192,7 +197,8 @@ async function onMessageHandler (target, context, message, self) {
     } catch (error) {
       console.error('Failed to save message:', error)
     }
-  } else if (message.includes('-2')) {
+  } else if (score.includes('-2')) {
+    console.log('-2 joke')
     context.joke = false
     context.msg = message
     try {
