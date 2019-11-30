@@ -280,17 +280,6 @@ async function offlineAnalysis (streamID) {
 
   const streamData = streamSnapshot.data()
 
-  const stream = {
-    id: streamData.id,
-    gameID: streamData.game_id,
-    startedAt: streamData.started_at,
-    thumbnailURL: streamData.thumbnail_url,
-    title: streamData.title,
-    type: streamData.type,
-    userID: streamData.user_id,
-    userName: streamData.user_name
-  }
-
   let jokeScoreTotal = 0
   messagesSnapshot.forEach(message => {
     message.data().joke ? jokeScoreTotal += 2 : jokeScoreTotal -= 2
@@ -320,7 +309,7 @@ async function offlineAnalysis (streamID) {
     if (sum < jokeScoreLow) jokeScoreLow = sum
   })
 
-  const streamStartedAt = moment(startedAt)
+  const streamStartedAt = moment(streamData.startedAt)
 
   let jokeScore = 0
   const parsedMessages = []
@@ -344,12 +333,32 @@ async function offlineAnalysis (streamID) {
     }
   }
 
-  await streamDocRef.set({ ...stream, data, jokeScoreTotal, jokeScoreMin, jokeScoreMax, jokeScoreHigh, jokeScoreLow }, { merge: true })
+  await streamDocRef.set({ ...streamData, data, jokeScoreTotal, jokeScoreMin, jokeScoreMax, jokeScoreHigh, jokeScoreLow }, { merge: true })
+}
+
+async function messageFilter (streamID) {
+  const streamDocRef = await streamsCollectionRef.doc(`${streamID}`)
+  const messagesCollectionRef = await streamDocRef.collection('messages')
+  const messagesQueryRef = await messagesCollectionRef.orderBy('tmi-sent-ts')
+
+  const messagesSnapshot = await messagesQueryRef.get()
+
+  messagesSnapshot.forEach(message => {
+    const msg = message.data().msg
+
+    if (!(/(^|\s)([+-]2)/.test(msg))) {
+      message.ref.delete()
+    }
+  })
 }
 
 update()
 setInterval(update, 10000)
 
-// offlineAnalysis('35453791088')
+// offlineAnalysis('36243559072')
 //   .then(() => console.log('Jobs done.'))
+//   .catch(console.error)
+
+// messageFilter('36243559072')
+//   .then(() => console.log('Done'))
 //   .catch(console.error)
