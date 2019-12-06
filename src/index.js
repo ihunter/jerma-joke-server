@@ -187,7 +187,6 @@ async function onMessageHandler (target, context, message, self) {
   if (!score) return
 
   if (score.includes('+2')) {
-    console.log('+2 joke')
     context.joke = true
     context.msg = message
     try {
@@ -198,7 +197,6 @@ async function onMessageHandler (target, context, message, self) {
       console.error('Failed to save message:', error)
     }
   } else if (score.includes('-2')) {
-    console.log('-2 joke')
     context.joke = false
     context.msg = message
     try {
