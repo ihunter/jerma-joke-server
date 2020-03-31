@@ -1,11 +1,12 @@
 require('dotenv').config()
 
 const tmi = require('tmi.js')
-const api = require('./api')
+const getAPI = require('./api')
 const db = require('./db')
 const moment = require('moment')
 
 const sleep = require('util').promisify(setTimeout)
+
 
 // eslint-disable-next-line new-cap
 const client = new tmi.client({
@@ -20,10 +21,6 @@ const client = new tmi.client({
     process.env.CHANNEL_NAME
   ]
 })
-
-client.on('message', onMessageHandler)
-
-client.connect()
 
 // Global
 const streamsCollectionRef = db.collection('streams')
@@ -40,6 +37,14 @@ function clearGlobals () {
   messages.length = 0
   games.length = 0
 }
+
+(async () => {
+
+client.on('message', onMessageHandler)
+
+client.connect()
+
+const api = await getAPI()
 
 // Format stream data from twitch api
 async function getStreamData () {
@@ -350,10 +355,6 @@ async function messageFilter (streamID) {
   })
 }
 
-async function getOAuthToken () {
-  
-}
-
 update()
 setInterval(update, 10000)
 
@@ -364,3 +365,5 @@ setInterval(update, 10000)
 // messageFilter('36243559072')
 //   .then(() => console.log('Done'))
 //   .catch(console.error)
+
+})()
