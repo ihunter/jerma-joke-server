@@ -48,7 +48,7 @@ async function getOAuthToken () {
   let startDate = new Date()
 
   return async () => {
-    let currentDate = new Date()
+    const currentDate = new Date()
     const durationInSeconds = (currentDate - startDate)
 
     if ((authData.expires_in - durationInSeconds) <= 0) {
@@ -58,6 +58,7 @@ async function getOAuthToken () {
       )
 
       authData = res.data
+      startDate = new Date()
     }
 
     return authData.access_token
@@ -65,7 +66,6 @@ async function getOAuthToken () {
 }
 
 (async () => {
-
   client.on('message', onMessageHandler)
 
   client.connect()
@@ -213,7 +213,6 @@ async function getOAuthToken () {
   }
 
   async function onMessageHandler (target, context, message, self) {
-    console.log(message)
     if (self) return console.log('No self response')
 
     if (!streamDocRef) return
