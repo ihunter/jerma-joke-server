@@ -350,6 +350,10 @@ async function messageFilter (streamID) {
   })
 }
 
+async function getOAuthToken () {
+  
+}
+
 update()
 setInterval(update, 10000)
 
