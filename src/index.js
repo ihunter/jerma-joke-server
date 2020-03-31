@@ -213,6 +213,7 @@ async function getOAuthToken () {
   }
 
   async function onMessageHandler (target, context, message, self) {
+    console.log(message)
     if (self) return console.log('No self response')
 
     if (!streamDocRef) return
@@ -387,7 +388,7 @@ async function getOAuthToken () {
 
   update()
   setInterval(update, 10000)
-  setInterval(OAuth, 1000)
+  setInterval(OAuth, 24 * 60 * 60 * 1000)
 
   // offlineAnalysis('36243559072')
   //   .then(() => console.log('Jobs done.'))
