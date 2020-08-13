@@ -20,4 +20,6 @@ admin.initializeApp({
   databaseURL: 'https://jerma-joke.firebaseio.com'
 })
 
-module.exports = admin.firestore()
+module.exports = {
+  db: admin.firestore()
+}

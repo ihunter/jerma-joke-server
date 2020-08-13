@@ -1,11 +1,15 @@
 require('dotenv').config()
 
 const tmi = require('tmi.js')
-const api = require('./api')
-const db = require('./db')
+const API = require('./api')
+const { db } = require('./db')
 const moment = require('moment')
+const api = API()
 
 const sleep = require('util').promisify(setTimeout)
+
+const ONE_SECOND = 1000
+const TEN_SECONDS = ONE_SECOND * 10
 
 // eslint-disable-next-line new-cap
 const client = new tmi.client({
@@ -27,7 +31,9 @@ let streamDocRef = null
 let stream = null
 let startedAt = null
 const messages = []
+const newMessages = []
 const games = []
+let analyzeDataIntervalID = null
 
 function clearGlobals () {
   streamDocRef = null
@@ -35,366 +41,250 @@ function clearGlobals () {
   startedAt = null
   messages.length = 0
   games.length = 0
+  clearInterval(analyzeDataIntervalID)
 }
 
-async function getOAuthToken () {
-  const { TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET } = process.env
+client.on('message', onMessageHandler)
+client.connect()
 
-  const res = await api.post(
-    `https://id.twitch.tv/oauth2/token?client_id=${TWITCH_CLIENT_ID}&client_secret=${TWITCH_CLIENT_SECRET}&grant_type=client_credentials`
-  )
+// Format stream data from twitch api
+async function getStreamData () {
+  try {
+    const twitchAPI = await api()
+    const response = await twitchAPI.get(`streams?user_login=${process.env.USER_LOGIN}`)
+    const stream = response.data.data[0]
 
-  let authData = res.data
-  let startDate = new Date()
+    if (!stream) return false
 
-  return async () => {
-    const currentDate = new Date()
-    const durationInSeconds = (currentDate - startDate)
-
-    if ((authData.expires_in - durationInSeconds) <= 0) {
-      console.log('expired token')
-      const res = await api.post(
-        `https://id.twitch.tv/oauth2/token?client_id=${TWITCH_CLIENT_ID}&client_secret=${TWITCH_CLIENT_SECRET}&grant_type=client_credentials`
-      )
-
-      authData = res.data
-      startDate = new Date()
-    }
-
-    return authData.access_token
-  }
-}
-
-(async () => {
-  client.on('message', onMessageHandler)
-
-  client.connect()
-
-  const OAuth = await getOAuthToken()
-
-  const OAuthToken = await OAuth()
-
-  api.defaults.headers.common['Authorization'] = `Bearer ${OAuthToken}`
-
-  // Format stream data from twitch api
-  async function getStreamData () {
-    try {
-      const response = await api.get(`streams?user_login=${process.env.USER_LOGIN}`)
-      const stream = response.data.data[0]
-
-      if (!stream) return false
-
-      if (!games.find(game => game.id === stream.game_id) && stream.game_id !== 0) {
-        const game = await getGameData(stream.game_id)
-        if (game) {
-          console.log('New game detected:', game)
-          games.push(game)
+    if (stream.game_id !== 0 && !games.find(game => game.id === stream.game_id)) {
+      const game = await getGameData(stream.game_id)
+      if (game) {
+        games.push(game)
+        if (streamDocRef) {
+          await streamDocRef.set({ games }, { merge: true })
         }
       }
-
-      const video = await getVideoData()
-
-      return {
-        id: stream.id,
-        games: games,
-        startedAt: stream.started_at,
-        thumbnailURL: stream.thumbnail_url,
-        title: stream.title,
-        type: stream.type,
-        userID: stream.user_id,
-        userName: stream.user_name,
-        video: video
-      }
-    } catch (error) {
-      console.error('Failed to get stream:', error.response.data.message)
     }
+
+    const video = await getVideoData()
+
+    return {
+      id: stream.id,
+      games: games,
+      startedAt: stream.started_at,
+      thumbnailURL: stream.thumbnail_url,
+      title: stream.title,
+      type: stream.type,
+      userID: stream.user_id,
+      userName: stream.user_name,
+      video: video
+    }
+  } catch (error) {
+    console.error('Failed to get stream:', error)
   }
+}
 
-  // Format video data from twitch api
-  async function getVideoData (id) {
-    try {
-      const query = id ? `videos?id=${id}` : `videos?user_id=${process.env.USER_ID}`
-      const response = await api.get(query)
-      const video = response.data.data[0]
+// Format video data from twitch api
+async function getVideoData (id) {
+  try {
+    const query = id ? `videos?id=${id}` : `videos?user_id=${process.env.USER_ID}`
+    const twitchAPI = await api()
+    const response = await twitchAPI.get(query)
+    const video = response.data.data[0]
 
-      if (!video) return false
+    if (!video) return false
 
-      return {
-        id: video.id,
-        userID: video.user_id,
-        userName: video.user_name,
-        title: video.title,
-        createdAt: video.created_at,
-        publishedAt: video.published_at,
-        URL: video.url,
-        thumbnailURL: video.thumbnail_url,
-        type: video.type,
-        duration: video.duration
-      }
-    } catch (error) {
-      console.error('Failed to get VOD:', error.response.data.message)
+    return {
+      id: video.id,
+      userID: video.user_id,
+      userName: video.user_name,
+      title: video.title,
+      createdAt: video.created_at,
+      publishedAt: video.published_at,
+      URL: video.url,
+      thumbnailURL: video.thumbnail_url,
+      type: video.type,
+      duration: video.duration
     }
+  } catch (error) {
+    console.error('Failed to get VOD:', error.response.data.message)
   }
+}
 
-  async function getGameData (gameID) {
-    try {
-      const response = await api.get(`games?id=${gameID}`)
-      const game = response.data.data[0]
+async function getGameData (gameID) {
+  try {
+    const twitchAPI = await api()
+    const response = await twitchAPI.get(`games?id=${gameID}`)
+    const game = response.data.data[0]
 
-      if (!game) return false
+    if (!game) return false
 
-      return {
-        id: game.id,
-        name: game.name,
-        boxArtURL: game.box_art_url
-      }
-    } catch (error) {
-      console.error('Failed to get game:', error.response.data.message)
+    return {
+      id: game.id,
+      name: game.name,
+      boxArtURL: game.box_art_url
     }
+  } catch (error) {
+    console.error('Failed to get game:', error.response.data.message)
   }
+}
 
-  async function update () {
-    try {
-      const streamTemp = await getStreamData()
+async function update () {
+  try {
+    const streamTemp = await getStreamData()
 
-      if ((stream && streamTemp) && (stream.id !== streamTemp.id)) {
-        console.log('New stream detected')
-        endOfStream()
-      }
-
-      stream = streamTemp
-    } catch (error) {
-      console.error('Failed to update stream:', error)
-    }
-
-    if (stream && !streamDocRef) {
-      try {
-        console.log('Stream started, establishing database connection')
-        startedAt = stream.startedAt
-        streamDocRef = await streamsCollectionRef.doc(stream.id)
-
-        const messagesCollectionRef = await streamDocRef.collection('messages')
-        const messagesQueryRef = await messagesCollectionRef.orderBy('tmi-sent-ts')
-        const messagesSnapshot = await messagesQueryRef.get()
-
-        messagesSnapshot.forEach(message => {
-          messages.push(message.data())
-        })
-        await streamDocRef.set({ ...stream }, { merge: true })
-      } catch (error) {
-        console.error('Error creating stream:', error)
-      }
-    } else if (!stream && streamDocRef) {
+    if ((stream && streamTemp) && (stream.id !== streamTemp.id)) {
+      console.log('New stream detected')
       endOfStream()
     }
+
+    stream = streamTemp
+  } catch (error) {
+    console.error('Failed to update stream:', error)
   }
 
-  async function endOfStream () {
+  if (stream && !streamDocRef) {
     try {
-      console.log('Stream over, final analysis')
-      const localStreamDocRef = streamDocRef
-      const streamDoc = await streamDocRef.get()
-      const streamData = streamDoc.data()
-      const videoID = streamData.video.id
-      console.log('Document Ref ID:', localStreamDocRef.id)
-      console.log('Video ID:', videoID)
-      clearGlobals()
+      console.log('Stream started, establishing database connection')
+      startedAt = stream.startedAt
+      streamDocRef = await streamsCollectionRef.doc(stream.id)
 
-      let video = await getVideoData(videoID)
-      while (!video.thumbnailURL) {
-        await sleep(2000)
-        video = await getVideoData(videoID)
-        console.log(video.thumbnailURL)
-      }
-      await localStreamDocRef.set({ type: 'offline', video }, { merge: true })
+      const messagesCollectionRef = await streamDocRef.collection('messages')
+      const messagesQueryRef = await messagesCollectionRef.orderBy('tmi-sent-ts')
+      const messagesSnapshot = await messagesQueryRef.get()
+
+      messagesSnapshot.forEach(message => {
+        messages.push(message.data())
+      })
+
+      await streamDocRef.set({ ...stream }, { merge: true })
+
+      analyzeDataIntervalID = setInterval(analyzeData, ONE_SECOND)
     } catch (error) {
-      console.error('Failed to update stream:', error)
+      console.error('Error creating stream:', error)
     }
+  } else if (!stream && streamDocRef) {
+    endOfStream()
   }
+}
 
-  async function onMessageHandler (target, context, message, self) {
-    if (self) return console.log('No self response')
-
-    if (!streamDocRef) return
-
-    const score = message.match(/(^|\s)([+-]2)/)
-
-    if (!score) return
-
-    if (score.includes('+2')) {
-      context.joke = true
-      context.msg = message
-      try {
-        messages.push(context)
-        await streamDocRef.collection('messages').doc(context.id).set(context)
-        await analyzeData()
-      } catch (error) {
-        console.error('Failed to save message:', error)
-      }
-    } else if (score.includes('-2')) {
-      context.joke = false
-      context.msg = message
-      try {
-        messages.push(context)
-        await streamDocRef.collection('messages').doc(context.id).set(context)
-        await analyzeData()
-      } catch (error) {
-        console.error('Failed to save message:', error)
-      }
-    }
-  }
-
-  async function analyzeData () {
-    // Calculate the total joke score so far
-    const jokeScoreTotal = messages.reduce((sum, message) => {
-      return message.joke ? sum + 2 : sum - 2
-    }, 0)
-
-    const jokeScoreMin = messages.reduce((sum, message) => {
-      return message.joke ? sum : sum - 2
-    }, 0)
-
-    const jokeScoreMax = messages.reduce((sum, message) => {
-      return message.joke ? sum + 2 : sum
-    }, 0)
-
-    let jokeScoreHigh = 0
-    messages.reduce((sum, message) => {
-      message.joke ? sum += 2 : sum -= 2
-      if (sum > jokeScoreHigh) jokeScoreHigh = sum
-      return sum
-    }, 0)
-
-    let jokeScoreLow = 0
-    messages.reduce((sum, message) => {
-      message.joke ? sum += 2 : sum -= 2
-      if (sum < jokeScoreLow) jokeScoreLow = sum
-      return sum
-    }, 0)
-
+async function endOfStream () {
+  try {
+    console.log('Stream over, final analysis')
+    const localStreamDocRef = streamDocRef
+    const streamDoc = await streamDocRef.get()
+    const streamData = streamDoc.data()
+    const videoID = streamData.video.id
     const streamStartedAt = moment(startedAt)
     const streamUpTime = moment().diff(streamStartedAt, 'minutes')
+    clearGlobals()
 
-    let jokeScore = 0
-    const parsedMessages = messages.map(message => {
-      const messagePostedAt = moment(+message['tmi-sent-ts'])
-      const interval = messagePostedAt.diff(streamStartedAt, 'minutes')
+    await localStreamDocRef.set({ type: 'offline', streamUpTime }, { merge: true })
 
-      message.joke ? jokeScore += 2 : jokeScore -= 2
-
-      return { jokeScore, interval }
-    })
-
-    // Combine all messages with the same interval into one data point
-    let interval = -1
-    const data = []
-    for (let i = parsedMessages.length - 1; i >= 0; i--) {
-      const message = parsedMessages[i]
-      if (message.interval !== interval) {
-        data.unshift(message)
-        interval = message.interval
-      }
+    let video = await getVideoData(videoID)
+    while (!video.thumbnailURL) {
+      await sleep(2000)
+      video = await getVideoData(videoID)
     }
 
-    try {
-      await streamDocRef.set({ games, data, streamUpTime, jokeScoreTotal, jokeScoreMin, jokeScoreMax, jokeScoreHigh, jokeScoreLow }, { merge: true })
-    } catch (error) {
-      console.error('Failed to save condensed data:', error)
+    await localStreamDocRef.set({ video }, { merge: true })
+    console.log('Final analysis complete')
+  } catch (error) {
+    console.error('Failed to update stream:', error)
+  }
+}
+
+async function onMessageHandler (target, context, message, self) {
+  if (self || !streamDocRef) return
+
+  const score = message.match(/(?<=^|\s)[+-]2(?=$|\s)/g)
+
+  if (!score) return
+
+  context.joke = score.includes('+2')
+  context.msg = message
+
+  messages.push(context)
+  newMessages.push(context)
+}
+
+async function analyzeData () {
+  // Check if any new messages have been recorded
+  if (newMessages.length <= 0) return
+
+  // Batch write new messages to the database
+  const batch = db.batch()
+  newMessages.forEach(msg => {
+    const ref = streamDocRef.collection('messages').doc(msg.id)
+    batch.set(ref, msg)
+  })
+  await batch.commit()
+
+  newMessages.length = 0
+
+  let jokeScoreTotal = 0
+  let jokeScoreMin = 0
+  let jokeScoreMax = 0
+  let jokeScoreHigh = 0
+  let jokeScoreLow = 0
+
+  const timeSeries = new Map()
+  const streamStartedAt = moment(startedAt)
+  const streamUpTime = moment().diff(streamStartedAt, 'minutes')
+
+  messages.forEach(message => {
+    // Get total score
+    jokeScoreTotal += message.joke ? 2 : -2
+
+    // Get high score
+    jokeScoreHigh = jokeScoreTotal > jokeScoreHigh ? jokeScoreTotal : jokeScoreHigh
+
+    // Get low score
+    jokeScoreLow = jokeScoreTotal < jokeScoreLow ? jokeScoreTotal : jokeScoreLow
+
+    // Get max score
+    jokeScoreMax += message.joke ? 2 : 0
+
+    // Get min score
+    jokeScoreMin += !message.joke ? -2 : 0
+
+    const messagePostedAt = moment(+message['tmi-sent-ts'])
+    const interval = messagePostedAt.diff(streamStartedAt, 'minutes')
+
+    if (timeSeries.has(interval)) {
+      const jokeValue = message.joke ? 2 : -2
+      const value = timeSeries.get(interval)
+      timeSeries.set(interval, value + jokeValue)
+    } else {
+      timeSeries.set(interval, jokeScoreTotal)
     }
+  })
+
+  const data = []
+  timeSeries.forEach((value, key) => {
+    data.push({
+      interval: key,
+      jokeScore: value
+    })
+  })
+
+  try {
+    await streamDocRef.set(
+      {
+        data,
+        streamUpTime,
+        jokeScoreTotal,
+        jokeScoreMin,
+        jokeScoreMax,
+        jokeScoreHigh,
+        jokeScoreLow
+      },
+      { merge: true }
+    )
+  } catch (error) {
+    console.error('Failed to save condensed data:', error)
   }
+}
 
-  async function offlineAnalysis (streamID) {
-    const streamDocRef = await streamsCollectionRef.doc(`${streamID}`)
-    const messagesCollectionRef = await streamDocRef.collection('messages')
-    const messagesQueryRef = await messagesCollectionRef.orderBy('tmi-sent-ts')
-
-    const streamSnapshot = await streamDocRef.get()
-    const messagesSnapshot = await messagesQueryRef.get()
-
-    const streamData = streamSnapshot.data()
-
-    let jokeScoreTotal = 0
-    messagesSnapshot.forEach(message => {
-      message.data().joke ? jokeScoreTotal += 2 : jokeScoreTotal -= 2
-    })
-
-    let jokeScoreMin = 0
-    messagesSnapshot.forEach(message => {
-      message.data().joke ? jokeScoreMin += 0 : jokeScoreMin -= 2
-    })
-
-    let jokeScoreMax = 0
-    messagesSnapshot.forEach(message => {
-      message.data().joke ? jokeScoreMax += 2 : jokeScoreMax += 0
-    })
-
-    let sum = 0
-    let jokeScoreHigh = 0
-    messagesSnapshot.forEach(message => {
-      message.data().joke ? sum += 2 : sum -= 2
-      if (sum > jokeScoreHigh) jokeScoreHigh = sum
-    })
-
-    sum = 0
-    let jokeScoreLow = 0
-    messagesSnapshot.forEach(message => {
-      message.data().joke ? sum += 2 : sum -= 2
-      if (sum < jokeScoreLow) jokeScoreLow = sum
-    })
-
-    const streamStartedAt = moment(streamData.startedAt)
-
-    let jokeScore = 0
-    const parsedMessages = []
-    messagesSnapshot.forEach(message => {
-      const messageData = message.data()
-      const messagePostedAt = moment(+messageData['tmi-sent-ts'])
-      const interval = messagePostedAt.diff(streamStartedAt, 'minutes')
-
-      messageData.joke ? jokeScore += 2 : jokeScore -= 2
-
-      parsedMessages.push({ jokeScore, interval })
-    })
-
-    let interval = -1
-    const data = []
-    for (let i = parsedMessages.length - 1; i >= 0; i--) {
-      const message = parsedMessages[i]
-      if (message.interval !== interval) {
-        data.unshift(message)
-        interval = message.interval
-      }
-    }
-
-    await streamDocRef.set({ ...streamData, data, jokeScoreTotal, jokeScoreMin, jokeScoreMax, jokeScoreHigh, jokeScoreLow }, { merge: true })
-  }
-
-  async function messageFilter (streamID) {
-    const streamDocRef = await streamsCollectionRef.doc(`${streamID}`)
-    const messagesCollectionRef = await streamDocRef.collection('messages')
-    const messagesQueryRef = await messagesCollectionRef.orderBy('tmi-sent-ts')
-
-    const messagesSnapshot = await messagesQueryRef.get()
-
-    messagesSnapshot.forEach(message => {
-      const msg = message.data().msg
-
-      if (!(/(^|\s)([+-]2)/.test(msg))) {
-        message.ref.delete()
-      }
-    })
-  }
-
-  update()
-  setInterval(update, 10000)
-  setInterval(OAuth, 24 * 60 * 60 * 1000)
-
-  // offlineAnalysis('36243559072')
-  //   .then(() => console.log('Jobs done.'))
-  //   .catch(console.error)
-
-  // messageFilter('36243559072')
-  //   .then(() => console.log('Done'))
-  //   .catch(console.error)
-
-})()
+update()
+setInterval(update, TEN_SECONDS)
