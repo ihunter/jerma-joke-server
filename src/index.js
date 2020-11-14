@@ -150,7 +150,7 @@ async function update () {
       streamDocRef = streamsCollectionRef.doc(stream.id)
 
       const messagesCollectionRef = streamDocRef.collection('messages')
-      const messagesQueryRef = await messagesCollectionRef.orderBy('tmi-sent-ts')
+      const messagesQueryRef = messagesCollectionRef.orderBy('tmi-sent-ts')
       const messagesSnapshot = await messagesQueryRef.get()
 
       messagesSnapshot.forEach(message => {
