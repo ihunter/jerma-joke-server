@@ -31,7 +31,7 @@ let streamDocRef = null
 let stream = null
 let startedAt = null
 const messages = []
-const newMessages = []
+let newMessages = []
 const games = []
 let analyzeDataIntervalID = null
 
@@ -211,7 +211,7 @@ async function onMessageHandler (target, context, message, self) {
 async function analyzeData () {
   // Check if any new messages have been recorded
   if (newMessages.length <= 0) return
-
+  const before = newMessages.length
   // Batch write new messages to the database
   const batch = db.batch()
   newMessages.forEach(msg => {
@@ -220,7 +220,7 @@ async function analyzeData () {
   })
   await batch.commit()
 
-  newMessages.length = 0
+  newMessages = newMessages.slice(before)
 
   let jokeScoreTotal = 0
   let jokeScoreMin = 0
