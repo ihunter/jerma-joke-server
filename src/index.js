@@ -204,13 +204,13 @@ async function onMessageHandler (target, context, message, self) {
   context.joke = score.includes('+2')
   context.msg = message
 
-  messages.push(context)
   newMessages.push(context)
 }
 
 async function analyzeData () {
   // Check if any new messages have been recorded
   if (newMessages.length <= 0) return
+  messages.push(...newMessages)
   const before = newMessages.length
   // Batch write new messages to the database
   const batch = db.batch()
