@@ -19,7 +19,6 @@ module.exports = () => {
   return async () => {
     const currentDate = Date.now()
     const durationInSeconds = Math.ceil((currentDate - startDate) / 1000)
-    console.log(`Token expires in ${moment.duration(tokenExpiresIn - durationInSeconds, 'seconds').humanize()}`)
 
     if ((tokenExpiresIn - durationInSeconds) <= 0) {
       console.log('Token expired, requesting new token')
