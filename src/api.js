@@ -1,15 +1,19 @@
 require('dotenv').config()
+const https = require('https')
 const axios = require('axios')
 const moment = require('moment')
 
 module.exports = () => {
   const { TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET } = process.env
 
+  // https://stackoverflow.com/questions/63064393/getting-axios-error-connect-etimedout-when-making-high-volume-of-calls
   const twitchAPI = axios.create({
     baseURL: process.env.TWITCH_API_URL,
     headers: {
       'Client-ID': process.env.TWITCH_CLIENT_ID
-    }
+    },
+    timeout: 60000,
+    httpsAgent: new https.Agent({ keepAlive: true })
   })
 
   let token = null
