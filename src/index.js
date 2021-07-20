@@ -197,11 +197,14 @@ async function endOfStream() {
 async function onMessageHandler(target, context, message, self) {
   if (self || !streamDocRef) return
 
-  const score = message.match(/(?<=^|\s)[+-]2(?=$|\s)/g) || message.includes('jermaMinus2') || message.includes('jermaPlus2')
+  const plus2Emote = 'jermaPlus2'
+  const minus2Emote = 'jermaMinus2'
+
+  const score = message.match(/(?<=^|\s)[+-]2(?=$|\s)/g) || message.includes(plus2Emote) || message.includes(minus2Emote)
 
   if (!score) return
 
-  context.joke = score.includes('+2') || score.includes('jermaPlus2')
+  context.joke = score.includes('+2') || score.includes(plus2Emote)
   context.msg = message
 
   newMessages.push(context)
