@@ -35,7 +35,7 @@ let newMessages = []
 const games = []
 let analyzeDataIntervalID = null
 
-function clearGlobals () {
+function clearGlobals() {
   streamDocRef = null
   stream = null
   startedAt = null
@@ -48,7 +48,7 @@ client.on('message', onMessageHandler)
 client.connect()
 
 // Format stream data from twitch api
-async function getStreamData () {
+async function getStreamData() {
   try {
     const twitchAPI = await api()
     const response = await twitchAPI.get(`streams?user_login=${process.env.USER_LOGIN}`)
@@ -85,7 +85,7 @@ async function getStreamData () {
 }
 
 // Format video data from twitch api
-async function getVideoData (id) {
+async function getVideoData(id) {
   try {
     const query = id ? `videos?id=${id}` : `videos?user_id=${process.env.USER_ID}`
     const twitchAPI = await api()
@@ -111,7 +111,7 @@ async function getVideoData (id) {
   }
 }
 
-async function getGameData (gameID) {
+async function getGameData(gameID) {
   try {
     const twitchAPI = await api()
     const response = await twitchAPI.get(`games?id=${gameID}`)
@@ -129,7 +129,7 @@ async function getGameData (gameID) {
   }
 }
 
-async function update () {
+async function update() {
   try {
     const streamTemp = await getStreamData()
 
@@ -168,7 +168,7 @@ async function update () {
   }
 }
 
-async function endOfStream () {
+async function endOfStream() {
   try {
     console.log('Stream over, final analysis')
     const localStreamDocRef = streamDocRef
@@ -194,20 +194,20 @@ async function endOfStream () {
   }
 }
 
-async function onMessageHandler (target, context, message, self) {
+async function onMessageHandler(target, context, message, self) {
   if (self || !streamDocRef) return
 
-  const score = message.match(/(?<=^|\s)[+-]2(?=$|\s)/g)
+  const score = message.match(/(?<=^|\s)[+-]2(?=$|\s)/g) || message.includes('jermaMinus2') || message.includes('jermaPlus2')
 
   if (!score) return
 
-  context.joke = score.includes('+2')
+  context.joke = score.includes('+2') || score.includes('jermaPlus2')
   context.msg = message
 
   newMessages.push(context)
 }
 
-async function analyzeData () {
+async function analyzeData() {
   // Check if any new messages have been recorded
   if (newMessages.length <= 0) return
   messages.push(...newMessages)
