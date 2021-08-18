@@ -13,13 +13,6 @@ const TEN_SECONDS = ONE_SECOND * 10
 
 // eslint-disable-next-line new-cap
 const client = new tmi.client({
-  connection: {
-    reconnect: true
-  },
-  identity: {
-    username: process.env.BOT_USERNAME,
-    password: process.env.OAUTH_TOKEN
-  },
   channels: [
     process.env.CHANNEL_NAME
   ]
