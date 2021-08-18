@@ -1,43 +1,93 @@
 require('dotenv').config()
-const https = require('https')
 const axios = require('axios')
-const moment = require('moment')
+const https = require('https')
+const rateLimit = require('axios-rate-limit')
+const errorHandler = require('./axios-error-handling')
 
-module.exports = () => {
-  const { TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET } = process.env
+let isFetchingToken = false
+let failedRequestQueue = []
 
-  // https://stackoverflow.com/questions/63064393/getting-axios-error-connect-etimedout-when-making-high-volume-of-calls
-  const twitchAPI = axios.create({
+const twitchApi = rateLimit(
+  axios.create({
     baseURL: process.env.TWITCH_API_URL,
     headers: {
       'Client-ID': process.env.TWITCH_CLIENT_ID
     },
     timeout: 60000,
     httpsAgent: new https.Agent({ keepAlive: true })
-  })
+  }),
+  { maxRPS: +process.env.MAX_RPS || 12 }
+)
 
-  let token = null
-  let tokenExpiresIn = 0
-  let startDate = Date.now()
+// Add a response interceptor
+twitchApi.interceptors.response.use(
+  (response) => {
+    // Any status code that lie within the range of 2xx cause this function to trigger
+    // Do something with response data
+    twitchApi.setMaxRPS(
+      Math.floor(response.headers['ratelimit-remaining'] / 60) - 1
+    )
+    return response
+  },
+  async (error) => {
+    // Any status codes that falls outside the range of 2xx cause this function to trigger
+    // Do something with response error
+    const originalRequest = error.config
 
-  return async () => {
-    const currentDate = Date.now()
-    const durationInSeconds = Math.ceil((currentDate - startDate) / 1000)
+    if (error.response.status === 401 && !originalRequest._retry) {
+      if (isFetchingToken) {
+        try {
+          await new Promise((resolve, reject) => {
+            failedRequestQueue.push({ resolve, reject })
+          })
+          return twitchApi(originalRequest)
+        } catch (error) {
+          Promise.reject(error)
+        }
+      }
 
-    if ((tokenExpiresIn - durationInSeconds) <= 0) {
-      console.log('Token expired, requesting new token')
-      const res = await twitchAPI.post(
-        `https://id.twitch.tv/oauth2/token?client_id=${TWITCH_CLIENT_ID}&client_secret=${TWITCH_CLIENT_SECRET}&grant_type=client_credentials`
-      )
+      originalRequest._retry = true
+      isFetchingToken = true
 
-      token = res.data.access_token
-      tokenExpiresIn = res.data.expires_in
-      startDate = Date.now()
-      console.log(`New token expires in ${moment.duration(tokenExpiresIn, 'seconds').humanize()}`)
+      try {
+        const token = await getAuthToken()
+        twitchApi.defaults.headers.common.Authorization = `Bearer ${token}`
+        processQueue(null, token)
+        return twitchApi(originalRequest)
+      } catch (error) {
+        processQueue(error, null)
+      } finally {
+        isFetchingToken = false
+      }
     }
 
-    twitchAPI.defaults.headers.common.Authorization = `Bearer ${token}`
+    return Promise.reject(error)
+  }
+)
 
-    return twitchAPI
+async function getAuthToken() {
+  try {
+    const { data } = await axios.post(
+      `https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`
+    )
+
+    return data.access_token
+  } catch (error) {
+    console.error(error.response.data)
+    errorHandler(error)
   }
 }
+
+function processQueue(error, token = null) {
+  failedRequestQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error)
+    } else {
+      prom.resolve(token)
+    }
+  })
+
+  failedRequestQueue = []
+}
+
+module.exports = twitchApi

@@ -1,10 +1,10 @@
 require('dotenv').config()
 
 const tmi = require('tmi.js')
-const API = require('./api')
+const twitchAPI = require('./api')
 const { db } = require('./db')
 const moment = require('moment')
-const api = API()
+const errorHandler = require('./axios-error-handling')
 
 const sleep = require('util').promisify(setTimeout)
 
@@ -50,7 +50,6 @@ client.connect()
 // Format stream data from twitch api
 async function getStreamData() {
   try {
-    const twitchAPI = await api()
     const response = await twitchAPI.get(`streams?user_login=${process.env.USER_LOGIN}`)
     const stream = response.data.data[0]
 
@@ -80,7 +79,8 @@ async function getStreamData() {
       video: video
     }
   } catch (error) {
-    console.error('Failed to get stream:', error)
+    console.error('Failed to get stream')
+    errorHandler(error)
   }
 }
 
@@ -88,7 +88,6 @@ async function getStreamData() {
 async function getVideoData(id) {
   try {
     const query = id ? `videos?id=${id}` : `videos?user_id=${process.env.USER_ID}`
-    const twitchAPI = await api()
     const response = await twitchAPI.get(query)
     const video = response.data.data[0]
 
@@ -107,13 +106,13 @@ async function getVideoData(id) {
       duration: video.duration
     }
   } catch (error) {
-    console.error('Failed to get VOD:', error.response.data.message)
+    console.error('Failed to get VOD')
+    errorHandler(error)
   }
 }
 
 async function getGameData(gameID) {
   try {
-    const twitchAPI = await api()
     const response = await twitchAPI.get(`games?id=${gameID}`)
     const game = response.data.data[0]
 
@@ -125,7 +124,8 @@ async function getGameData(gameID) {
       boxArtURL: game.box_art_url
     }
   } catch (error) {
-    console.error('Failed to get game:', error.response.data.message)
+    console.error('Failed to get game')
+    errorHandler(error)
   }
 }
 
@@ -140,7 +140,8 @@ async function update() {
 
     stream = streamTemp
   } catch (error) {
-    console.error('Failed to update stream:', error)
+    console.error('Failed to update stream')
+    errorHandler(error)
   }
 
   if (stream && !streamDocRef) {
