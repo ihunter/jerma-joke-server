@@ -43,7 +43,7 @@ client.connect()
 // Format stream data from twitch api
 async function getStreamData() {
   try {
-    const response = await twitchAPI.get(`streams?user_login=${process.env.USER_LOGIN}`)
+    const response = await twitchAPI.get(`streams?user_id=${process.env.USER_ID}`)
     const stream = response.data.data[0]
 
     if (!stream) return false
