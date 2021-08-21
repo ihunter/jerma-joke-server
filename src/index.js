@@ -11,7 +11,6 @@ const sleep = require('util').promisify(setTimeout)
 const ONE_SECOND = 1000
 const TEN_SECONDS = ONE_SECOND * 10
 
-// eslint-disable-next-line new-cap
 const client = new tmi.client({
   channels: [
     process.env.CHANNEL_NAME
@@ -206,6 +205,7 @@ async function analyzeData() {
   if (newMessages.length <= 0) return
   messages.push(...newMessages)
   const before = newMessages.length
+
   // Batch write new messages to the database
   const batch = db.batch()
   newMessages.forEach(msg => {
