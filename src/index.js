@@ -258,28 +258,28 @@ async function analyzeData() {
 
     if (timeSeries.has(interval)) {
       const intervalData = timeSeries.get(interval);
-      intervalData.jokeScoreTotal += message.joke ? 2 : -2;
+      intervalData.jokeScore += message.joke ? 2 : -2;
 
-      intervalData.intervalJokeScoreHigh =
-        intervalData.jokeScoreTotal > intervalData.intervalJokeScoreHigh
+      intervalData.high =
+        intervalData.jokeScore > intervalData.high
           ? intervalData.jokeScoreTotal
-          : intervalData.intervalJokeScoreHigh;
+          : intervalData.high;
 
-      intervalData.intervalJokeScoreLow =
-        intervalData.jokeScoreTotal < intervalData.intervalJokeScoreLow
-          ? intervalData.jokeScoreTotal
-          : intervalData.intervalJokeScoreLow;
+      intervalData.low =
+        intervalData.jokeScore < intervalData.low
+          ? intervalData.jokeScore
+          : intervalData.low;
 
-      intervalData.intervalJokeScoreEnd = intervalData.jokeScoreTotal;
+      intervalData.close = intervalData.jokeScore;
 
       // timeSeries.set(interval, value + jokeValue);
     } else {
       timeSeries.set(interval, {
-        jokeScoreTotal,
-        intervalJokeScoreHigh: jokeScoreTotal,
-        intervalJokeScoreLow: jokeScoreTotal,
-        intervalJokeScoreStart: jokeScoreTotal,
-        intervalJokeScoreEnd: jokeScoreTotal,
+        jokeScore,
+        high: jokeScore,
+        low: jokeScore,
+        open: jokeScore,
+        close: jokeScore,
       });
     }
   });
