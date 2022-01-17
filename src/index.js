@@ -262,7 +262,7 @@ async function analyzeData() {
 
       intervalData.high =
         intervalData.jokeScore > intervalData.high
-          ? intervalData.jokeScoreTotal
+          ? intervalData.jokeScore
           : intervalData.high;
 
       intervalData.low =
@@ -275,11 +275,11 @@ async function analyzeData() {
       // timeSeries.set(interval, value + jokeValue);
     } else {
       timeSeries.set(interval, {
-        jokeScore,
-        high: jokeScore,
-        low: jokeScore,
-        open: jokeScore,
-        close: jokeScore,
+        jokeScore: jokeScoreTotal,
+        high: jokeScoreTotal,
+        low: jokeScoreTotal,
+        open: jokeScoreTotal,
+        close: jokeScoreTotal,
       });
     }
   });
