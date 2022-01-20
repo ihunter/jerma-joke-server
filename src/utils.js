@@ -71,7 +71,7 @@ async function analyzeData() {
 
         intervalData.close = intervalData.jokeScore;
 
-        // timeSeries.set(interval, value + jokeValue);
+        intervalData.volume += 1
       } else {
         timeSeries.set(interval, {
           jokeScore: jokeScoreTotal,
@@ -79,6 +79,7 @@ async function analyzeData() {
           low: jokeScoreTotal,
           open: jokeScoreTotal,
           close: jokeScoreTotal,
+          volume: 1
         });
       }
     });
