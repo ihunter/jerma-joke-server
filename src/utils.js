@@ -105,4 +105,27 @@ async function analyzeData() {
   }
 }
 
-analyzeData();
+(() => {
+  let minus = 0
+  let plus = 0
+  // const messages = db.collectionGroup('messages').where('display-name', '==', 'DrClay999');
+  // const messages = db.collectionGroup('messages').where('user-id', '==', '131594336');
+  const messages = db.collectionGroup('messages').where('username', '==', 'drclay999');
+  messages.get().then((querySnapshot) => {
+    querySnapshot.forEach((doc) => {
+      const data = doc.data()
+      console.log(data)
+      if (data.msg.includes('-2')) {
+        minus++
+      } else if (data.msg.includes('+2')) {
+        plus++
+      } else {
+        console.log(data.msg)
+      }
+    });
+    console.log(`Total -2: ${minus}`)
+    console.log(`Total +2: ${plus}`)
+  });
+})()
+
+// analyzeData();
