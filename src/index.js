@@ -8,7 +8,7 @@ const errorHandler = require("./axios-error-handling");
 const raygun = require('raygun');
 
 const raygunClient = new raygun.Client().init({
-  apiKey: '9bNbZEm5XewBtv06pNE7g',
+  apiKey: process.env.RAYGUN_API_KEY,
   reportUncaughtExceptions: true,
   batch: true
 });
