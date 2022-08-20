@@ -194,11 +194,14 @@ async function onMessageHandler(target, context, message, self) {
   if (self || !streamDocRef) return;
 
   const score =
-    message.match(/(?<=^|\s)[+-]2(?=$|\s)/g)
+    message.match(/(?<=^|\s)[+-]2(?=$|\s)/g) ||
+    message.match(/(?<=^|\s)jermaPlus2(?=$|\s)/g) ||
+    message.match(/(?<=^|\s)jermaMinus2(?=$|\s)/g);
 
+  console.log(score)
   if (!score) return;
 
-  context.joke = score.includes("+2");
+  context.joke = score.includes("+2") || score.includes("jermaPlus2");
   context.msg = message;
 
   newMessages.push(context);
