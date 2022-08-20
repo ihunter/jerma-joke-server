@@ -5,6 +5,13 @@ const twitchAPI = require("./api");
 const { db } = require("./db");
 const moment = require("moment");
 const errorHandler = require("./axios-error-handling");
+const raygun = require('raygun');
+
+const raygunClient = new raygun.Client().init({
+  apiKey: '9bNbZEm5XewBtv06pNE7g',
+  reportUncaughtExceptions: true,
+  batch: true
+});
 
 const sleep = require("util").promisify(setTimeout);
 
