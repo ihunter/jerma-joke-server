@@ -198,7 +198,6 @@ async function onMessageHandler(target, context, message, self) {
     message.match(/(?<=^|\s)jermaPlus2(?=$|\s)/g) ||
     message.match(/(?<=^|\s)jermaMinus2(?=$|\s)/g);
 
-  console.log(score)
   if (!score) return;
 
   context.joke = score.includes("+2") || score.includes("jermaPlus2");
