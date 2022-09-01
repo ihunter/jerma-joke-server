@@ -14,7 +14,6 @@
     "dotenv": "^16.0.2",
     "firebase-admin": "^11.0.1",
     "moment": "^2.29.4",
-    "raygun": "^0.13.2",
     "tmi.js": "^1.8.5"
   },
   "devDependencies": {

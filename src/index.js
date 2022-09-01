@@ -5,13 +5,6 @@ const twitchAPI = require("./api");
 const { db } = require("./db");
 const moment = require("moment");
 const errorHandler = require("./axios-error-handling");
-const raygun = require('raygun');
-
-const raygunClient = new raygun.Client().init({
-  apiKey: process.env.RAYGUN_API_KEY,
-  reportUncaughtExceptions: true,
-  batch: true
-});
 
 const sleep = require("util").promisify(setTimeout);
 
@@ -42,7 +35,10 @@ function clearGlobals() {
 }
 
 client.on("message", onMessageHandler);
-client.connect();
+client.connect()
+  .then(() => {
+    console.log(`Listening to ${process.env.CHANNEL_NAME}`)
+  })
 
 // Format stream data from twitch api
 async function getStreamData() {
