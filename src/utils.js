@@ -71,7 +71,11 @@ async function analyzeData() {
 
         intervalData.close = intervalData.jokeScore;
 
-        intervalData.volume += 1
+        intervalData.totalMinusTwo += message.joke ? 0 : -2;
+
+        intervalData.totalPlusTwo += message.joke ? 2 : 0;
+
+        intervalData.volume += 1;
       } else {
         timeSeries.set(interval, {
           jokeScore: jokeScoreTotal,
@@ -79,7 +83,9 @@ async function analyzeData() {
           low: jokeScoreTotal,
           open: jokeScoreTotal,
           close: jokeScoreTotal,
-          volume: 1
+          totalMinusTwo: jokeScoreMin,
+          totalPlusTwo: jokeScoreMax,
+          volume: 1,
         });
       }
     });
@@ -105,27 +111,27 @@ async function analyzeData() {
   }
 }
 
-(() => {
-  let minus = 0
-  let plus = 0
-  // const messages = db.collectionGroup('messages').where('display-name', '==', 'DrClay999');
-  // const messages = db.collectionGroup('messages').where('user-id', '==', '131594336');
-  const messages = db.collectionGroup('messages').where('username', '==', 'drclay999');
-  messages.get().then((querySnapshot) => {
-    querySnapshot.forEach((doc) => {
-      const data = doc.data()
-      console.log(data)
-      if (data.msg.includes('-2')) {
-        minus++
-      } else if (data.msg.includes('+2')) {
-        plus++
-      } else {
-        console.log(data.msg)
-      }
-    });
-    console.log(`Total -2: ${minus}`)
-    console.log(`Total +2: ${plus}`)
-  });
-})()
+// (() => {
+//   let minus = 0
+//   let plus = 0
+//   // const messages = db.collectionGroup('messages').where('display-name', '==', 'DrClay999');
+//   // const messages = db.collectionGroup('messages').where('user-id', '==', '131594336');
+//   const messages = db.collectionGroup('messages').where('username', '==', 'drclay999');
+//   messages.get().then((querySnapshot) => {
+//     querySnapshot.forEach((doc) => {
+//       const data = doc.data()
+//       console.log(data)
+//       if (data.msg.includes('-2')) {
+//         minus++
+//       } else if (data.msg.includes('+2')) {
+//         plus++
+//       } else {
+//         console.log(data.msg)
+//       }
+//     });
+//     console.log(`Total -2: ${minus}`)
+//     console.log(`Total +2: ${plus}`)
+//   });
+// })()
 
-// analyzeData();
+analyzeData();

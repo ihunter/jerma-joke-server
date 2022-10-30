@@ -35,10 +35,9 @@ function clearGlobals() {
 }
 
 client.on("message", onMessageHandler);
-client.connect()
-  .then(() => {
-    console.log(`Listening to ${process.env.CHANNEL_NAME}`)
-  })
+client.connect().then(() => {
+  console.log(`Listening to ${process.env.CHANNEL_NAME}`);
+});
 
 // Format stream data from twitch api
 async function getStreamData() {
@@ -272,7 +271,11 @@ async function analyzeData() {
 
       intervalData.close = intervalData.jokeScore;
 
-      intervalData.volume += 1
+      intervalData.totalMinusTwo += message.joke ? 0 : -2;
+
+      intervalData.totalPlusTwo += message.joke ? 2 : 0;
+
+      intervalData.volume += 1;
     } else {
       timeSeries.set(interval, {
         jokeScore: jokeScoreTotal,
@@ -280,7 +283,9 @@ async function analyzeData() {
         low: jokeScoreTotal,
         open: jokeScoreTotal,
         close: jokeScoreTotal,
-        volume: 1
+        totalMinusTwo: jokeScoreMin,
+        totalPlusTwo: jokeScoreMax,
+        volume: 1,
       });
     }
   });
