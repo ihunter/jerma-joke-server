@@ -4,7 +4,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "deploy": "flyctl deploy -a jerma-joke"
   },
   "author": "",
   "license": "ISC",
