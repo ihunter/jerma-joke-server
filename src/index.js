@@ -182,7 +182,7 @@ async function endOfStream() {
     await sleep(5000);
     let video = await getVideoData();
 
-    while (!video.thumbnailURL && video.thumbnailURL === "https://vod-secure.twitch.tv/_404/404_processing_%{width}x%{height}.png") {
+    while (!video.thumbnailURL || video.thumbnailURL === "https://vod-secure.twitch.tv/_404/404_processing_%{width}x%{height}.png") {
       // Sometimes the URL looks like this and is not good
       // https://vod-secure.twitch.tv/_404/404_processing_%{width}x%{height}.png
       await sleep(5000);
