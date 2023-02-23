@@ -67,7 +67,7 @@ async function getStreamData() {
     const video = await getVideoData();
 
     // update VOD because sometimes when the stream starts its the last streams VOD
-    if (streamDocRef && videoID !== video.id) {
+    if (videoID !== null && streamDocRef && videoID !== video.id) {
       console.log("New video id found!")
       await streamDocRef.set({ video }, { merge: true });
     }
