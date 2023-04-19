@@ -1,6 +1,6 @@
-FROM node:18.12.1-bullseye
+FROM node:18.16.0
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
 COPY package*.json ./
 
