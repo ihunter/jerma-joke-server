@@ -1,28 +1,25 @@
-require("dotenv").config();
-const { db } = require("./db");
-const moment = require("moment");
+import "dotenv/config";
+import { db } from "../db";
+import dayjs from "dayjs";
+import type { Message, Stream, JokeData } from "../types";
 
 async function analyzeData() {
   const streamsCollectionSnapshot = await db.collection("streams").get();
 
-  const streams = [];
-  streamsCollectionSnapshot.forEach(async (stream) => {
-    const streamData = stream.data();
-    streams.push(streamData);
+  const streams = streamsCollectionSnapshot.docs.map((doc) => {
+    return doc.data() as Stream;
   });
 
   for (let i = 0; i < streams.length; i++) {
     const streamData = streams[i];
     const streamDocRef = db.collection("streams").doc(streamData.id);
-    console.log("Stream:", streamData.title);
 
-    const messages = [];
     const messagesCollectionRef = streamDocRef.collection("messages");
     const messagesQueryRef = messagesCollectionRef.orderBy("tmi-sent-ts");
     const messagesSnapshot = await messagesQueryRef.get();
 
-    messagesSnapshot.forEach((message) => {
-      messages.push(message.data());
+    const messages = messagesSnapshot.docs.map((doc) => {
+      return doc.data() as Message;
     });
 
     let jokeScoreTotal = 0;
@@ -31,7 +28,7 @@ async function analyzeData() {
     let jokeScoreHigh = 0;
     let jokeScoreLow = 0;
 
-    const timeSeries = new Map();
+    const timeSeries = new Map<number, JokeData>();
     const streamStartedAt = streamData.startedAt;
 
     messages.forEach((message) => {
@@ -52,11 +49,11 @@ async function analyzeData() {
       // Get min score
       jokeScoreMin += !message.joke ? -2 : 0;
 
-      const messagePostedAt = moment(+message["tmi-sent-ts"]);
+      const messagePostedAt = dayjs(parseInt(message["tmi-sent-ts"]));
       const interval = messagePostedAt.diff(streamStartedAt, "minutes");
+      const intervalData = timeSeries.get(interval);
 
-      if (timeSeries.has(interval)) {
-        const intervalData = timeSeries.get(interval);
+      if (intervalData !== undefined) {
         intervalData.jokeScore += message.joke ? 2 : -2;
 
         intervalData.high =
@@ -90,12 +87,11 @@ async function analyzeData() {
       }
     });
 
-    const data = [];
-    timeSeries.forEach((intervalData, key) => {
-      data.push({
+    const data = Array.from(timeSeries).map(([key, value]) => {
+      return {
         interval: key,
-        ...intervalData,
-      });
+        ...value,
+      };
     });
 
     try {
@@ -110,28 +106,5 @@ async function analyzeData() {
     }
   }
 }
-
-// (() => {
-//   let minus = 0
-//   let plus = 0
-//   // const messages = db.collectionGroup('messages').where('display-name', '==', 'DrClay999');
-//   // const messages = db.collectionGroup('messages').where('user-id', '==', '131594336');
-//   const messages = db.collectionGroup('messages').where('username', '==', 'drclay999');
-//   messages.get().then((querySnapshot) => {
-//     querySnapshot.forEach((doc) => {
-//       const data = doc.data()
-//       console.log(data)
-//       if (data.msg.includes('-2')) {
-//         minus++
-//       } else if (data.msg.includes('+2')) {
-//         plus++
-//       } else {
-//         console.log(data.msg)
-//       }
-//     });
-//     console.log(`Total -2: ${minus}`)
-//     console.log(`Total +2: ${plus}`)
-//   });
-// })()
 
 analyzeData();

@@ -1,42 +1,75 @@
-require("dotenv").config();
+import "dotenv/config";
 
-const tmi = require("tmi.js");
-const twitchAPI = require("./api");
-const { db } = require("./db");
-const moment = require("moment");
-const errorHandler = require("./axios-error-handling");
+import tmi from "tmi.js";
+import dayjs from "dayjs";
+import { db } from "./db";
+import { twitchApi } from "./api";
+import { errorHandler } from "./utils/axios-error-handling";
+import { promisify } from "util";
+import type {
+  TwitchStreamResponse,
+  TwitchGameResponse,
+  TwitchVideoResponse,
+  StreamInfo,
+  GameInfo,
+  Message,
+  JokeData,
+} from "./types";
+import { AxiosError } from "axios";
 
-const sleep = require("util").promisify(setTimeout);
+const sleep = promisify(setTimeout);
 
 const ONE_SECOND = 1000;
 const TEN_SECONDS = ONE_SECOND * 10;
+const channelName = process.env.CHANNEL_NAME || "";
 
 const client = new tmi.client({
-  channels: [process.env.CHANNEL_NAME],
+  channels: [channelName],
 });
 
 // Global
 const streamsCollectionRef = db.collection("streams");
-let streamDocRef = null;
-let stream = null;
-let startedAt = null;
-const messages = [];
-let newMessages = [];
-const games = [];
-let videoID = null;
-let analyzeDataIntervalID = null;
+let streamDocRef:
+  | FirebaseFirestore.DocumentReference<
+      FirebaseFirestore.DocumentData,
+      FirebaseFirestore.DocumentData
+    >
+  | undefined;
+let stream: StreamInfo | undefined;
+let videoId: string | undefined;
+let startedAt: string | undefined;
+const games: GameInfo[] = [];
+const messages: Message[] = [];
+const newMessages: Message[] = [];
+
+let analyzeDataIntervalId: ReturnType<typeof setInterval>;
 
 function clearGlobals() {
-  streamDocRef = null;
-  stream = null;
-  startedAt = null;
+  streamDocRef = undefined;
+  stream = undefined;
+  videoId = undefined;
+  startedAt = undefined;
   messages.length = 0;
   games.length = 0;
-  videoID = null;
-  clearInterval(analyzeDataIntervalID);
+  clearInterval(analyzeDataIntervalId);
 }
 
-client.on("message", onMessageHandler);
+client.on("message", (channel, userstate, message, self) => {
+  if (self || !streamDocRef) return;
+
+  const score =
+    message.match(/(?<=^|\s)[+-]2(?=$|\s)/g) ||
+    message.match(/(?<=^|\s)jermaPlus2(?=$|\s)/g) ||
+    message.match(/(?<=^|\s)jermaMinus2(?=$|\s)/g);
+
+  if (!score) return;
+
+  userstate.joke = score.includes("+2") || score.includes("jermaPlus2");
+  userstate.msg = message;
+
+  newMessages.push(userstate as Message);
+});
+
 client.connect().then(() => {
   console.log(`Listening to ${process.env.CHANNEL_NAME}`);
 });
@@ -44,17 +77,15 @@ client.connect().then(() => {
 // Format stream data from twitch api
 async function getStreamData() {
   try {
-    const response = await twitchAPI.get(
+    const { data } = await twitchApi.get<TwitchStreamResponse>(
       `streams?user_id=${process.env.USER_ID}`
     );
-    const stream = response.data.data[0];
 
-    if (!stream) return false;
+    const stream = data.data.at(0);
 
-    if (
-      stream.game_id !== 0 &&
-      !games.find((game) => game.id === stream.game_id)
-    ) {
+    if (!stream) return;
+
+    if (stream.game_id && !games.some((game) => game.id === stream.game_id)) {
       const game = await getGameData(stream.game_id);
       if (game) {
         games.push(game);
@@ -66,13 +97,15 @@ async function getStreamData() {
 
     const video = await getVideoData();
 
-    // update VOD because sometimes when the stream starts its the last streams VOD
-    if (videoID !== null && streamDocRef && videoID !== video.id) {
-      console.log("New video id found!")
-      await streamDocRef.set({ video }, { merge: true });
-    }
+    if (video) {
+      // update VOD because sometimes when the stream starts its the last streams VOD
+      if (streamDocRef && videoId !== video.id) {
+        console.log("New video id found!");
+        await streamDocRef.set({ video }, { merge: true });
+      }
 
-    videoID = video.id;
+      videoId = video.id;
+    }
 
     return {
       id: stream.id,
@@ -87,18 +120,22 @@ async function getStreamData() {
     };
   } catch (error) {
     console.error("Failed to get stream");
-    errorHandler(error);
+    if (error instanceof AxiosError) {
+      errorHandler(error);
+    }
   }
 }
 
 // Format video data from twitch api
 async function getVideoData() {
   try {
-    const query = `videos?user_id=${process.env.USER_ID}`;
-    const response = await twitchAPI.get(query);
-    const video = response.data.data[0];
+    const { data } = await twitchApi.get<TwitchVideoResponse>(
+      `videos?user_id=${process.env.USER_ID}`
+    );
 
-    if (!video) return false;
+    const video = data.data.at(0);
+
+    if (!video) return;
 
     return {
       id: video.id,
@@ -114,16 +151,21 @@ async function getVideoData() {
     };
   } catch (error) {
     console.error("Failed to get VOD");
-    errorHandler(error);
+    if (error instanceof AxiosError) {
+      errorHandler(error);
+    }
   }
 }
 
-async function getGameData(gameID) {
+async function getGameData(gameId: string) {
   try {
-    const response = await twitchAPI.get(`games?id=${gameID}`);
-    const game = response.data.data[0];
+    const { data } = await twitchApi.get<TwitchGameResponse>(
+      `games?id=${gameId}`
+    );
 
-    if (!game) return false;
+    const game = data.data.at(0);
+
+    if (!game) return;
 
     return {
       id: game.id,
@@ -132,7 +174,9 @@ async function getGameData(gameID) {
     };
   } catch (error) {
     console.error("Failed to get game");
-    errorHandler(error);
+    if (error instanceof AxiosError) {
+      errorHandler(error);
+    }
   }
 }
 
@@ -140,15 +184,19 @@ async function update() {
   try {
     const streamTemp = await getStreamData();
 
-    if (stream && streamTemp && stream.id !== streamTemp.id) {
-      console.log("New stream detected");
-      endOfStream();
-    }
+    if (streamTemp) {
+      if (stream && stream.id !== streamTemp.id) {
+        console.log("New stream detected");
+        endOfStream();
+      }
 
-    stream = streamTemp;
+      stream = streamTemp;
+    }
   } catch (error) {
     console.error("Failed to update stream");
-    errorHandler(error);
+    if (error instanceof AxiosError) {
+      errorHandler(error);
+    }
   }
 
   if (stream && !streamDocRef) {
@@ -161,13 +209,13 @@ async function update() {
       const messagesQueryRef = messagesCollectionRef.orderBy("tmi-sent-ts");
       const messagesSnapshot = await messagesQueryRef.get();
 
-      messagesSnapshot.forEach((message) => {
-        messages.push(message.data());
+      messagesSnapshot.forEach((doc) => {
+        messages.push(doc.data() as Message);
       });
 
       await streamDocRef.set({ ...stream }, { merge: true });
 
-      analyzeDataIntervalID = setInterval(analyzeData, ONE_SECOND);
+      analyzeDataIntervalId = setInterval(analyzeData, ONE_SECOND);
     } catch (error) {
       console.error("Error creating stream:", error);
     }
@@ -180,26 +228,28 @@ async function endOfStream() {
   try {
     console.log("Stream over, final analysis");
     const localStreamDocRef = streamDocRef;
-    const streamStartedAt = moment(startedAt);
-    const streamUpTime = moment().diff(streamStartedAt, "minutes");
+    const streamStartedAt = dayjs(startedAt);
+    const streamUpTime = dayjs().diff(streamStartedAt, "minutes");
     clearGlobals();
+
+    if (!localStreamDocRef) return;
 
     await localStreamDocRef.set(
       { type: "offline", streamUpTime },
       { merge: true }
     );
 
-    await sleep(5000);
     let video = await getVideoData();
 
     while (
+      !video ||
       !video.thumbnailURL ||
       video.thumbnailURL ===
         "https://vod-secure.twitch.tv/_404/404_processing_%{width}x%{height}.png"
     ) {
       // Sometimes the URL looks like this and is not good
       // https://vod-secure.twitch.tv/_404/404_processing_%{width}x%{height}.png
-      await sleep(5000);
+      await sleep(10000);
       video = await getVideoData();
     }
 
@@ -208,22 +258,6 @@ async function endOfStream() {
   } catch (error) {
     console.error("Failed to update stream:", error);
   }
-}
-
-async function onMessageHandler(target, context, message, self) {
-  if (self || !streamDocRef) return;
-
-  const score =
-    message.match(/(?<=^|\s)[+-]2(?=$|\s)/g) ||
-    message.match(/(?<=^|\s)jermaPlus2(?=$|\s)/g) ||
-    message.match(/(?<=^|\s)jermaMinus2(?=$|\s)/g);
-
-  if (!score) return;
-
-  context.joke = score.includes("+2") || score.includes("jermaPlus2");
-  context.msg = message;
-
-  newMessages.push(context);
 }
 
 async function analyzeData() {
@@ -235,12 +269,14 @@ async function analyzeData() {
   // Batch write new messages to the database
   const batch = db.batch();
   newMessages.forEach((msg) => {
-    const ref = streamDocRef.collection("messages").doc(msg.id);
-    batch.set(ref, msg);
+    if (streamDocRef) {
+      const ref = streamDocRef.collection("messages").doc(msg.id);
+      batch.set(ref, msg);
+    }
   });
   await batch.commit();
 
-  newMessages = newMessages.slice(before);
+  newMessages.splice(0, before);
 
   let jokeScoreTotal = 0;
   let jokeScoreMin = 0;
@@ -248,9 +284,9 @@ async function analyzeData() {
   let jokeScoreHigh = 0;
   let jokeScoreLow = 0;
 
-  const timeSeries = new Map();
-  const streamStartedAt = moment(startedAt);
-  const streamUpTime = moment().diff(streamStartedAt, "minutes");
+  const timeSeries = new Map<number, JokeData>();
+  const streamStartedAt = dayjs(startedAt);
+  const streamUpTime = dayjs().diff(streamStartedAt, "minutes");
 
   messages.forEach((message) => {
     // Get total score
@@ -270,11 +306,11 @@ async function analyzeData() {
     // Get min score
     jokeScoreMin += !message.joke ? -2 : 0;
 
-    const messagePostedAt = moment(+message["tmi-sent-ts"]);
+    const messagePostedAt = dayjs(parseInt(message["tmi-sent-ts"]));
     const interval = messagePostedAt.diff(streamStartedAt, "minutes");
+    const intervalData = timeSeries.get(interval);
 
-    if (timeSeries.has(interval)) {
-      const intervalData = timeSeries.get(interval);
+    if (intervalData !== undefined) {
       intervalData.jokeScore += message.joke ? 2 : -2;
 
       intervalData.high =
@@ -308,15 +344,15 @@ async function analyzeData() {
     }
   });
 
-  const data = [];
-  timeSeries.forEach((intervalData, key) => {
-    data.push({
+  const data = Array.from(timeSeries).map(([key, value]) => {
+    return {
       interval: key,
-      ...intervalData,
-    });
+      ...value,
+    };
   });
 
   try {
+    if (!streamDocRef) return;
     await streamDocRef.set(
       {
         data,
