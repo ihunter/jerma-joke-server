@@ -11,7 +11,6 @@ import type {
   TwitchGameResponse,
   TwitchVideoResponse,
   StreamInfo,
-  GameInfo,
   Message,
   JokeData,
 } from "./types";
@@ -28,7 +27,6 @@ const client = new tmi.client({
 });
 
 // Global
-const streamsCollectionRef = db.collection("streams");
 let streamDocRef:
   | FirebaseFirestore.DocumentReference<
       FirebaseFirestore.DocumentData,
@@ -36,9 +34,6 @@ let streamDocRef:
     >
   | undefined;
 let stream: StreamInfo | undefined;
-let videoId: string | undefined;
-let startedAt: string | undefined;
-const games: GameInfo[] = [];
 const messages: Message[] = [];
 const newMessages: Message[] = [];
 
@@ -47,12 +42,14 @@ let analyzeDataIntervalId: ReturnType<typeof setInterval>;
 function clearGlobals() {
   streamDocRef = undefined;
   stream = undefined;
-  videoId = undefined;
-  startedAt = undefined;
   messages.length = 0;
-  games.length = 0;
+  newMessages.length = 0;
   clearInterval(analyzeDataIntervalId);
 }
+
+client.connect().then(() => {
+  console.log(`Listening to ${process.env.CHANNEL_NAME}`);
+});
 
 client.on("message", (channel, userstate, message, self) => {
   if (self || !streamDocRef) return;
@@ -70,9 +67,50 @@ client.on("message", (channel, userstate, message, self) => {
   newMessages.push(userstate as Message);
 });
 
-client.connect().then(() => {
-  console.log(`Listening to ${process.env.CHANNEL_NAME}`);
-});
+async function update() {
+  try {
+    const currentStream = await getStreamData();
+
+    if (currentStream) {
+      if (stream && stream.id !== currentStream.id) {
+        console.log("New stream detected");
+        endOfStream();
+      }
+
+      stream = currentStream;
+    }
+  } catch (error) {
+    console.error("Failed to update stream");
+    if (error instanceof AxiosError) {
+      errorHandler(error);
+    }
+  }
+
+  if (stream && !streamDocRef) {
+    try {
+      console.log("Stream detected, establishing database connection");
+      // Get stream doc from database or create if one doesn't exist
+      streamDocRef = db.collection("streams").doc(stream.id);
+
+      // Get messages subcollection or create if one doesn't exist
+      const messagesCollectionRef = streamDocRef.collection("messages");
+      const messagesQueryRef = messagesCollectionRef.orderBy("tmi-sent-ts");
+      const messagesSnapshot = await messagesQueryRef.get();
+
+      messagesSnapshot.forEach((doc) => {
+        messages.push(doc.data() as Message);
+      });
+
+      await streamDocRef.set({ ...stream }, { merge: true });
+
+      analyzeDataIntervalId = setInterval(analyzeData, ONE_SECOND);
+    } catch (error) {
+      console.error("Error creating stream:", error);
+    }
+  } else if (!stream && streamDocRef) {
+    endOfStream();
+  }
+}
 
 // Format stream data from twitch api
 async function getStreamData() {
@@ -81,14 +119,31 @@ async function getStreamData() {
       `streams?user_id=${process.env.USER_ID}`
     );
 
-    const stream = data.data.at(0);
+    const currentStream = data.data.at(0);
 
-    if (!stream) return;
+    if (!currentStream) return;
 
-    if (stream.game_id && !games.some((game) => game.id === stream.game_id)) {
-      const game = await getGameData(stream.game_id);
+    // Check if stream already exists in the db
+    if (!stream) {
+      const streamDocRef = db.collection("streams").doc(currentStream.id);
+
+      const streamDoc = await streamDocRef.get();
+
+      if (streamDoc.exists) {
+        console.log("Stream already exists in db");
+        stream = streamDoc.data() as StreamInfo;
+      }
+    }
+
+    if (
+      stream &&
+      currentStream.game_id &&
+      !stream?.games?.some((game) => game.id === currentStream.game_id)
+    ) {
+      const game = await getGameData(currentStream.game_id);
       if (game) {
-        games.push(game);
+        stream?.games?.push(game);
+        const games = stream.games;
         if (streamDocRef) {
           await streamDocRef.set({ games }, { merge: true });
         }
@@ -97,25 +152,23 @@ async function getStreamData() {
 
     const video = await getVideoData();
 
-    if (video) {
+    if (stream && video && stream.video?.id !== video.id) {
       // update VOD because sometimes when the stream starts its the last streams VOD
-      if (streamDocRef && videoId !== video.id) {
+      if (streamDocRef) {
         console.log("New video id found!");
         await streamDocRef.set({ video }, { merge: true });
       }
-
-      videoId = video.id;
     }
 
     return {
-      id: stream.id,
-      games: games,
-      startedAt: stream.started_at,
-      thumbnailURL: stream.thumbnail_url,
-      title: stream.title,
-      type: stream.type,
-      userID: stream.user_id,
-      userName: stream.user_name,
+      id: currentStream.id,
+      games: stream?.games || [],
+      startedAt: currentStream.started_at,
+      thumbnailURL: currentStream.thumbnail_url,
+      title: currentStream.title,
+      type: currentStream.type,
+      userID: currentStream.user_id,
+      userName: currentStream.user_name,
       video: video,
     };
   } catch (error) {
@@ -180,55 +233,11 @@ async function getGameData(gameId: string) {
   }
 }
 
-async function update() {
-  try {
-    const streamTemp = await getStreamData();
-
-    if (streamTemp) {
-      if (stream && stream.id !== streamTemp.id) {
-        console.log("New stream detected");
-        endOfStream();
-      }
-
-      stream = streamTemp;
-    }
-  } catch (error) {
-    console.error("Failed to update stream");
-    if (error instanceof AxiosError) {
-      errorHandler(error);
-    }
-  }
-
-  if (stream && !streamDocRef) {
-    try {
-      console.log("Stream started, establishing database connection");
-      startedAt = stream.startedAt;
-      streamDocRef = streamsCollectionRef.doc(stream.id);
-
-      const messagesCollectionRef = streamDocRef.collection("messages");
-      const messagesQueryRef = messagesCollectionRef.orderBy("tmi-sent-ts");
-      const messagesSnapshot = await messagesQueryRef.get();
-
-      messagesSnapshot.forEach((doc) => {
-        messages.push(doc.data() as Message);
-      });
-
-      await streamDocRef.set({ ...stream }, { merge: true });
-
-      analyzeDataIntervalId = setInterval(analyzeData, ONE_SECOND);
-    } catch (error) {
-      console.error("Error creating stream:", error);
-    }
-  } else if (!stream && streamDocRef) {
-    endOfStream();
-  }
-}
-
 async function endOfStream() {
   try {
     console.log("Stream over, final analysis");
     const localStreamDocRef = streamDocRef;
-    const streamStartedAt = dayjs(startedAt);
+    const streamStartedAt = dayjs(stream?.startedAt);
     const streamUpTime = dayjs().diff(streamStartedAt, "minutes");
     clearGlobals();
 
@@ -285,7 +294,7 @@ async function analyzeData() {
   let jokeScoreLow = 0;
 
   const timeSeries = new Map<number, JokeData>();
-  const streamStartedAt = dayjs(startedAt);
+  const streamStartedAt = dayjs(stream?.startedAt);
   const streamUpTime = dayjs().diff(streamStartedAt, "minutes");
 
   messages.forEach((message) => {

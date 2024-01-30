@@ -19,7 +19,7 @@ export type Stream = {
 
 export type StreamInfo = {
   id: string;
-  games: GameInfo[];
+  games?: GameInfo[];
   startedAt: string;
   thumbnailURL: string;
   title: string;
