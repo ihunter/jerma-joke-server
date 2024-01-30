@@ -42,7 +42,6 @@ twitchApi.interceptors.response.use(
   async (error: AxiosError) => {
     // Any status codes that falls outside the range of 2xx cause this function to trigger
     // Do something with response error
-    console.log("Request Failed");
     const { config, response } = error;
 
     if (!config || !response) return;
