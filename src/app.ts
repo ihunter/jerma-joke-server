@@ -71,14 +71,12 @@ async function update() {
   try {
     const currentStream = await getStreamData();
 
-    if (currentStream) {
-      if (stream && stream.id !== currentStream.id) {
-        console.log("New stream detected");
-        endOfStream();
-      }
-
-      stream = currentStream;
+    if (stream && currentStream && stream.id !== currentStream.id) {
+      console.log("New stream detected");
+      endOfStream();
     }
+
+    stream = currentStream;
   } catch (error) {
     console.error("Failed to update stream");
     if (error instanceof AxiosError) {
