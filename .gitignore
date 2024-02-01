@@ -1,5 +1,5 @@
 node_modules
 .env
-jerma-joke-firebase-adminsdk-4vksc-6b4b6c4893.json
+service-account.json
 fly.toml
 dist
