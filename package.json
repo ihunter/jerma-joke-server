@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "deploy": "flyctl deploy"
+    "deploy": "flyctl deploy -a jerma-joke-server"
   },
   "author": "",
   "license": "ISC",
