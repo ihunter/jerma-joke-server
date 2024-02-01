@@ -1,4 +1,5 @@
 import type { AxiosError } from "axios";
+
 function errorHandler(error: AxiosError) {
   if (error.response) {
     /*
