@@ -143,9 +143,8 @@ async function getStreamData() {
       const game = await getGameData(currentStream.game_id);
       if (game) {
         stream?.games?.push(game);
-        const games = stream.games;
         if (streamDocRef) {
-          await streamDocRef.set({ games }, { merge: true });
+          await streamDocRef.set({ games: stream.games }, { merge: true });
         }
       }
     }
