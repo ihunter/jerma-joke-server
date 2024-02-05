@@ -1,4 +1,4 @@
-require("dotenv").config();
+import "dotenv/config";
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import https from "https";
 import rateLimit from "axios-rate-limit";
