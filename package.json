@@ -21,7 +21,7 @@
   "devDependencies": {
     "@flydotio/dockerfile": "^0.5.2",
     "@tsconfig/recommended": "^1.0.3",
-    "@types/node": "^20.11.17",
+    "@types/node": "^20.11.19",
     "@types/tmi.js": "^1.8.6",
     "eslint": "^8.56.0",
     "nodemon": "^3.0.3",
