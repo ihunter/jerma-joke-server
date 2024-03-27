@@ -19,12 +19,12 @@
     "tmi.js": "^1.8.5"
   },
   "devDependencies": {
-    "@flydotio/dockerfile": "^0.5.2",
-    "@tsconfig/recommended": "^1.0.3",
-    "@types/node": "^20.11.28",
+    "@flydotio/dockerfile": "^0.5.4",
+    "@tsconfig/recommended": "^1.0.5",
+    "@types/node": "^20.11.30",
     "@types/tmi.js": "^1.8.6",
     "eslint": "^8.57.0",
     "nodemon": "^3.1.0",
-    "typescript": "^5.4.2"
+    "typescript": "^5.4.3"
   }
 }
