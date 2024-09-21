@@ -1,15 +1,17 @@
 {
   "name": "twich-irc-bot",
   "version": "1.0.0",
+  "author": "",
+  "license": "ISC",
   "main": "dist/app.js",
   "scripts": {
     "start": "node dist/app.js",
     "dev": "nodemon src/app.ts",
     "build": "tsc",
-    "deploy": "flyctl deploy"
+    "deploy": "flyctl deploy",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "axios": "^1.7.7",
     "axios-rate-limit": "^1.4.0",
