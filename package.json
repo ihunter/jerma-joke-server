@@ -24,9 +24,9 @@
     "@antfu/eslint-config": "^3.7.1",
     "@flydotio/dockerfile": "^0.5.8",
     "@tsconfig/recommended": "^1.0.7",
-    "@types/node": "^22.5.5",
+    "@types/node": "^22.6.1",
     "@types/tmi.js": "^1.8.6",
-    "eslint": "^9.11.0",
+    "eslint": "^9.11.1",
     "nodemon": "^3.1.7",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.2"

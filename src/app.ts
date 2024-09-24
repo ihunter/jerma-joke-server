@@ -57,9 +57,9 @@ client.on('message', (channel, userstate, message, self) => {
     return
 
   const score
-    = message.match(/(?<=^|\s)[+-]2(?=$|\s)/g)
-    || message.match(/(?<=^|\s)jermaPlus2(?=$|\s)/g)
-    || message.match(/(?<=^|\s)jermaMinus2(?=$|\s)/g)
+    = message.match(/(?<!\S)[+-]2(?!\S)/g)
+    || message.match(/(?<!\S)jermaPlus2(?!\S)/g)
+    || message.match(/(?<!\S)jermaMinus2(?!\S)/g)
 
   if (!score)
     return
