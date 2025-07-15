@@ -32,16 +32,16 @@ let streamDocRef:
     FirebaseFirestore.DocumentData,
     FirebaseFirestore.DocumentData
   >
-  | undefined
-let stream: StreamInfo | undefined
+  | null
+let stream: StreamInfo | null
 const messages: Message[] = []
 const newMessages: Message[] = []
 
 let analyzeDataIntervalId: ReturnType<typeof setInterval>
 
 function clearGlobals() {
-  streamDocRef = undefined
-  stream = undefined
+  streamDocRef = null
+  stream = null
   messages.length = 0
   newMessages.length = 0
   clearInterval(analyzeDataIntervalId)
@@ -52,7 +52,7 @@ client.connect().then(() => {
   console.log(`Listening to ${process.env.CHANNEL_NAME}`)
 })
 
-client.on('message', (channel, userstate, message, self) => {
+client.on('message', (_channel, userstate, message, self) => {
   if (self || !streamDocRef)
     return
 
@@ -128,7 +128,7 @@ async function getStreamData() {
     const currentStream = data.data.at(0)
 
     if (!currentStream)
-      return
+      return null
 
     // Check if stream already exists in the db
     if (!stream) {
@@ -185,6 +185,8 @@ async function getStreamData() {
     if (error instanceof AxiosError) {
       errorHandler(error)
     }
+
+    return null
   }
 }
 
@@ -198,7 +200,7 @@ async function getVideoData() {
     const video = data.data.at(0)
 
     if (!video)
-      return
+      return null
 
     return {
       id: video.id,
@@ -218,6 +220,8 @@ async function getVideoData() {
     if (error instanceof AxiosError) {
       errorHandler(error)
     }
+
+    return null
   }
 }
 
@@ -230,7 +234,7 @@ async function getGameData(gameId: string) {
     const game = data.data.at(0)
 
     if (!game)
-      return
+      return null
 
     return {
       id: game.id,
@@ -243,6 +247,7 @@ async function getGameData(gameId: string) {
     if (error instanceof AxiosError) {
       errorHandler(error)
     }
+    return null
   }
 }
 

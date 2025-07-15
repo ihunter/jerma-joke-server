@@ -12,6 +12,9 @@ async function analyzeData() {
 
   for (let i = 0; i < streams.length; i++) {
     const streamData = streams[i]
+    if (!streamData)
+      return
+
     const streamDocRef = db.collection('streams').doc(streamData.id)
 
     const messagesCollectionRef = streamDocRef.collection('messages')

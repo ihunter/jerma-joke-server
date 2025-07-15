@@ -18,7 +18,7 @@ interface TokenResponse {
 
 const twitchApi = rateLimit(
   axios.create({
-    baseURL: process.env.TWITCH_API_URL,
+    baseURL: process.env.TWITCH_API_URL!,
     headers: {
       'Client-ID': process.env.TWITCH_CLIENT_ID,
     },
@@ -80,6 +80,8 @@ async function getAuthToken() {
     if (error instanceof AxiosError) {
       errorHandler(error)
     }
+
+    return null
   }
 }
 

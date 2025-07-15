@@ -1,7 +1,8 @@
 {
-  "extends": "@tsconfig/node22/tsconfig.json",
+  "extends": ["@tsconfig/strictest/tsconfig", "@tsconfig/node22/tsconfig.json"],
   "compilerOptions": {
     "noImplicitAny": true,
+    "noPropertyAccessFromIndexSignature": false,
     "outDir": "dist"
   },
   "include": ["src/**/*"],

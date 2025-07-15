@@ -26,7 +26,7 @@ export interface StreamInfo {
   type: string
   userID: string
   userName: string
-  video?: VideoInfo
+  video?: VideoInfo | null
 }
 
 export interface DataPoint {
