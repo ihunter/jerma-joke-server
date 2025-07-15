@@ -6,7 +6,7 @@
   "main": "dist/app.js",
   "scripts": {
     "start": "node dist/app.js",
-    "dev": "nodemon src/app.ts",
+    "dev": "nodemon --exec tsx src/app.ts",
     "build": "tsc",
     "deploy": "flyctl deploy",
     "lint": "eslint .",
@@ -28,7 +28,7 @@
     "@types/tmi.js": "^1.8.6",
     "eslint": "^9.31.0",
     "nodemon": "^3.1.10",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
 }
