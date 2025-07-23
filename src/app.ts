@@ -27,13 +27,9 @@ const client = new tmi.Client({
 })
 
 // Global
-let streamDocRef:
-  | FirebaseFirestore.DocumentReference<
-    FirebaseFirestore.DocumentData,
-    FirebaseFirestore.DocumentData
-  >
-  | null
-let stream: StreamInfo | null
+let streamDocRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData, FirebaseFirestore.DocumentData> | null = null
+let stream: StreamInfo | null = null
+let streamStartedAt: string | null = null
 const messages: Message[] = []
 const newMessages: Message[] = []
 
@@ -42,6 +38,7 @@ let analyzeDataIntervalId: ReturnType<typeof setInterval>
 function clearGlobals() {
   streamDocRef = null
   stream = null
+  streamStartedAt = null
   messages.length = 0
   newMessages.length = 0
   clearInterval(analyzeDataIntervalId)
@@ -81,6 +78,7 @@ async function update() {
     }
 
     stream = currentStream
+    streamStartedAt = currentStream?.startedAt ?? null
   }
   catch (error) {
     console.error('Failed to update stream')
@@ -256,7 +254,6 @@ async function endOfStream() {
     // eslint-disable-next-line no-console
     console.log('Stream over, final analysis')
     const localStreamDocRef = streamDocRef
-    const streamStartedAt = dayjs(stream?.startedAt)
     const streamUpTime = dayjs().diff(streamStartedAt, 'minutes')
     clearGlobals()
 

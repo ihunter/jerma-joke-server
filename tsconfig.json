@@ -3,7 +3,8 @@
   "compilerOptions": {
     "noImplicitAny": true,
     "noPropertyAccessFromIndexSignature": false,
-    "outDir": "dist"
+    "outDir": "dist",
+    "sourceMap": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]
