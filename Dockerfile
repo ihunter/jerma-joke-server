@@ -1,4 +1,4 @@
-FROM node:22.16.0-slim AS base
+FROM node:22.17.1-slim AS base
 
 ARG PORT=3000
 ENV PORT=$PORT
