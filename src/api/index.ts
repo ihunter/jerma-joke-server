@@ -36,7 +36,7 @@ twitchApi.interceptors.response.use(
 
     // Set api ratelimit based on response header "ratelimit-remaining"
     const ratelimitRemaining: string = response.headers['ratelimit-remaining']
-    const maxRPS: number = Math.floor(Number.parseInt(ratelimitRemaining) / 60) - 1
+    const maxRPS = Math.max(1, Math.floor(Number.parseInt(ratelimitRemaining) / 60) - 1)
     twitchApi.setMaxRPS(maxRPS)
 
     return response
