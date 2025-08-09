@@ -78,7 +78,9 @@ async function update() {
     }
 
     stream = currentStream
-    streamStartedAt = currentStream?.startedAt ?? null
+
+    if (currentStream)
+      streamStartedAt = currentStream.startedAt
   }
   catch (error) {
     console.error('Failed to update stream')

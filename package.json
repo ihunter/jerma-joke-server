@@ -24,9 +24,9 @@
     "@antfu/eslint-config": "^5.2.0",
     "@tsconfig/node22": "^22.0.2",
     "@tsconfig/strictest": "^2.0.5",
-    "@types/node": "^24.2.0",
+    "@types/node": "^24.2.1",
     "@types/tmi.js": "^1.8.6",
-    "eslint": "^9.32.0",
+    "eslint": "^9.33.0",
     "nodemon": "^3.1.10",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
