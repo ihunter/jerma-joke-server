@@ -78,9 +78,6 @@ async function update() {
     }
 
     stream = currentStream
-
-    if (currentStream)
-      streamStartedAt = currentStream.startedAt
   }
   catch (error) {
     console.error('Failed to update stream')
@@ -95,6 +92,8 @@ async function update() {
       console.log('Stream detected, establishing database connection')
       // Get stream doc from database or create if one doesn't exist
       streamDocRef = db.collection('streams').doc(stream.id)
+
+      streamStartedAt = stream.startedAt
 
       // Get messages subcollection or create if one doesn't exist
       const messagesCollectionRef = streamDocRef.collection('messages')
