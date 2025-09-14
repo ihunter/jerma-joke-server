@@ -13,22 +13,22 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "axios": "^1.11.0",
+    "axios": "^1.12.1",
     "axios-rate-limit": "^1.4.0",
-    "dayjs": "^1.11.13",
-    "dotenv": "^17.2.1",
-    "firebase-admin": "^13.4.0",
+    "dayjs": "^1.11.18",
+    "dotenv": "^17.2.2",
+    "firebase-admin": "^13.5.0",
     "tmi.js": "^1.8.5"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^5.2.1",
+    "@antfu/eslint-config": "^5.3.0",
     "@tsconfig/node22": "^22.0.2",
     "@tsconfig/strictest": "^2.0.5",
-    "@types/node": "^24.3.0",
+    "@types/node": "^24.3.3",
     "@types/tmi.js": "^1.8.6",
-    "eslint": "^9.33.0",
+    "eslint": "^9.35.0",
     "nodemon": "^3.1.10",
-    "tsx": "^4.20.4",
+    "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }
 }
