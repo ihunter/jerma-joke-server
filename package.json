@@ -22,13 +22,13 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^6.2.0",
-    "@tsconfig/node22": "^22.0.3",
+    "@tsconfig/node22": "^22.0.5",
     "@tsconfig/strictest": "^2.0.8",
     "@types/node": "^24.10.1",
     "@types/tmi.js": "^1.8.6",
     "eslint": "^9.39.1",
     "nodemon": "^3.1.11",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
