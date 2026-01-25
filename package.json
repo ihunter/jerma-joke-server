@@ -21,10 +21,10 @@
     "tmi.js": "^1.8.5"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^7.0.1",
+    "@antfu/eslint-config": "^7.2.0",
     "@tsconfig/node22": "^22.0.5",
     "@tsconfig/strictest": "^2.0.8",
-    "@types/node": "^25.0.9",
+    "@types/node": "^25.0.10",
     "@types/tmi.js": "^1.8.6",
     "eslint": "^9.39.2",
     "nodemon": "^3.1.11",
